@@ -1,0 +1,327 @@
+import os
+import glob
+import shutil
+from pytubefix import YouTube
+from pytubefix import Playlist
+from pytubefix import Channel
+from pytubefix import Search
+from pytubefix import helpers
+from pytubefix.contrib.search import Filter
+from pytubefix.exceptions import BotDetection
+from pytubefix.cli import on_progress
+from moviepy import AudioFileClip, VideoFileClip
+
+MAX_FILE_LENGTH = 63
+DRY_RUN = False
+EXT = "mp4"
+DST = "/content/drive/MyDrive/MTV"
+DST_AUDIO = "/content/drive/MyDrive/MTV-Audio"
+
+VIDEO_MIME = "mp4"
+VIDEO_RES = "1080p"
+PROGRESSIVE = False
+ORDER_BY = "resolution"
+
+AUDIO = True
+RECONVERT = True
+
+PLS = True
+CLS = False
+QLS = False
+
+os.makedirs(DST, exist_ok=True)
+os.makedirs(DST_AUDIO, exist_ok=True)
+
+vs = ["https://www.youtube.com/watch?v=rtOvBOTyX00"]
+vs = [
+    "https://youtu.be/DFZ0bgl_bk0?si=pqWYyE3t-O7t-ChO",
+    "https://youtu.be/QzJtNJz3nEE?si=ZtNCRtsdNewhuNFr",
+]
+vs = []
+# vs = ['https://youtu.be/vsBf_0gDxSM?si=AjrxCxKfXmveao3C']
+vs = ["https://youtu.be/z9vs_UCmfdA?si=B8SkVqYN40le8PsW"]
+vs = ["https://youtu.be/3AllSrBdZkw?si=LEDv6aN1LEHfuzZ_"]
+vs = [
+    "https://youtu.be/P_fpDYAmTS8?si=njf-b38tjrVABUyz",
+    "https://youtu.be/Lix7UKHADO8?si=6yUaouQSF8NYOsnt",
+    "https://www.youtube.com/watch?v=arFomZzJ_i4",
+    "https://www.youtube.com/watch?v=larGBsOOZpo",
+    "https://www.youtube.com/watch?v=tiTVRnC9wQI&list=RDCMUCP1pFY0CA9KZKpXcWjM74ng&index=4",
+    "https://www.youtube.com/watch?v=OG1D2QLr0Yc",
+    "https://www.youtube.com/watch?v=0k6SjTDZrr0",
+    "https://www.youtube.com/watch?v=NCdeYnHSO1Y",
+    "https://www.youtube.com/watch?v=ntAhWr-BxBY",
+    "https://www.youtube.com/watch?v=2dm8QT69uKQ",
+    "https://www.youtube.com/watch?v=larGBsOOZpo",
+    "https://www.youtube.com/watch?v=_Q1BC6ZE_X4",
+    "https://www.youtube.com/watch?v=fglMo-HzM7w",
+    "https://www.youtube.com/watch?v=-iKpz9_NAUY",
+    "https://www.youtube.com/watch?v=FNPWu6mF7Ng",
+    "https://www.youtube.com/watch?v=9emovy-WhTU",
+    "https://www.youtube.com/watch?v=EUvtXXZAoLc",
+    "https://www.youtube.com/watch?v=g7Hki0V1lbw",
+    "https://www.youtube.com/watch?v=Qt2f0GOdIbo",
+    "https://www.youtube.com/watch?v=c7uDOVzd8yA",
+    "https://www.youtube.com/watch?v=WwCgKptrhmU",
+]
+vs = [
+    # "https://www.youtube.com/watch?v=zb3nAoJJGYo",
+    # "https://www.youtube.com/watch?v=BmtYHnvQcqw",
+    # "https://www.youtube.com/watch?v=6F-fAlGA0q0&list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
+]
+
+pls = [
+    "https://youtube.com/playlist?list=PLz1h4thc0ElpqXIV7Pv5UXjKH_u_vH8Vf&si=NTcTg9IkCN944AQ9",
+    "https://youtube.com/playlist?list=PLz1h4thc0ElrDORL-moPo9XiWQLjuTgYf&si=Fz44s8fDeNO6FbBI",
+    "https://youtube.com/playlist?list=PLz1h4thc0ElqHnueOFZ3mQAEioGISNtCy&si=6YLtdIuBbMo85SBj",
+    "https://youtube.com/playlist?list=PLCfe0YLBOKlRDeEqif2tBF7ngO0nCAy4K&si=UQCsWhnb2XBZ81s4",
+]
+pls = ["https://www.youtube.com/playlist?list=PLf8MTi2c_8X_dq38yM1laTWHmwCjSCqqE"]
+pls = [
+    "https://youtube.com/playlist?list=PLD1bKrYdYW5fQ7lTW9Inq0UqCZ8trBRBK&si=1kcTKm8cEe_WHIle"
+]
+pls = [
+    "https://www.youtube.com/watch?v=zTJ_DGqaIn0&list=PLf8MTi2c_8X_L8uzkrO4sQGZ5QBMH5uBI"
+]
+
+# pls =o['https://youtube.com/playlist?list=PLf8MTi2c_8X9IiAGMUMD9VdW2Ko69Vdzl&si=D2DQ1_N33VZ7CqLu']
+# pls = ['https://www.youtube.com/playlist?list=PLf8MTi2c_8X-oBWcMcaZk27-lYhiRvhFy', 'https://www.youtube.com/playlist?list=PLf8MTi2c_8X8ocIAwLm4bPn1YMcPTGt3D']
+# pls = ['https://youtube.com/playlist?list=OLAK5uy_kJntk1t2jZLBJiqhTgEXmghjA8AIJEiAg&si=o5bTGMwc0345MnQv']
+pls = [
+    # "https://youtube.com/playlist?list=PLf8MTi2c_8X8Vz5JGI57tNy2BlbjZkMxC&si=PliaxKExX5U48kPV",
+    # "https://youtube.com/playlist?list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
+    "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9XM74Pk2PuTKNo39C8bqTJ",
+]
+
+cls = [
+    # "https://www.youtube.com/@ProgrammingKnowledge/featured",
+    "https://www.youtube.com/@LillianChiu101",
+]
+
+qls = [
+    # "Programming Knowledge",
+    # "GitHub Issue Best Practices",
+    "global news"
+]
+
+
+def remove_characters(filename):
+    _filename = ""
+    for c in filename:
+        if c not in "｜|,/\\:*?<>":
+            _filename += c
+    return _filename
+
+    # filename = filename.replace('\"' , " ")
+    # filename = filename.replace('|', " ")
+    # filename = filename.replace(',', " ")
+    # filename = filename.replace('/"' , " ")
+    # filename = filename.replace('\\', " ")
+    # filename = filename.replace(':', " ")
+    # filename = filename.replace('*"' , " ")
+    # filename = filename.replace('?', " ")
+    # filename = filename.replace('<', " ")
+    # filename = filename.replace('>"' , " ")
+
+
+def download_yt(url):
+    yt = YouTube(
+        url=url,
+        use_oauth=False,
+        allow_oauth_cache=False,
+        on_progress_callback=on_progress,
+        # client='ANDROID',  # 'WEB'
+    )
+
+    print(yt.title)
+    print(f"Title: {yt.title}")
+    print(f"URL: {yt.watch_url}")
+    print(f"Duration: {yt.length} sec")
+    print("---")
+    if DRY_RUN:
+        return True  # for dry run
+
+    # vids = yt.streams
+    # for i, vid in enumerate(vids):
+    #   print(i, vid)
+
+    filename = helpers.safe_filename(s=yt.title, max_length=MAX_FILE_LENGTH)
+    full_filename = f"{filename}.{EXT}"
+
+    # download caption
+    for caption in yt.captions.keys():
+        print(caption.name)
+        remote_full_captionname = os.path.join(DST, f"{full_filename}.{caption}.txt")
+        caption.save_captions(remote_full_captionname)
+
+    # download video
+    remote_full_filename = os.path.join(DST, full_filename)
+    if not os.path.exists(remote_full_filename):
+        yt.streams.filter(
+            progressive=PROGRESSIVE, mime_type=f"video/{VIDEO_MIME}", res=VIDEO_RES
+        ).order_by(ORDER_BY).desc().first().download(
+            output_path=".", filename=full_filename
+        )
+        print(f"moving file from = {full_filename} to = {remote_full_filename}")
+        shutil.move(full_filename, remote_full_filename)
+    else:
+        print(
+            f"remote file = [{remote_full_filename}] already exists, skip download video this time"
+        )
+
+    # download audio
+    full_audioname = f"{filename}.mp3"
+    remote_full_audioname = os.path.join(DST_AUDIO, full_audioname)
+    if not os.path.exists(remote_full_audioname):
+        if AUDIO:
+            if RECONVERT and not PROGRESSIVE:
+                print(f"converting audio = {full_audioname}")
+                video = VideoFileClip(remote_full_filename)
+                audio = video.audio
+                if audio:
+                    audio.write_audiofile(full_audioname)  # , codec="pcm_s16le"
+                    shutil.move(full_audioname, remote_full_audioname)
+                else:
+                    yt.streams.filter(
+                        mime_type="audio/mp4", abr="128kbps"
+                    ).last().download(output_path=DST_AUDIO, filename=full_audioname)
+                    yt.streams.get_audio_only().download(
+                        output_path=DST_AUDIO, filename=full_audioname
+                    )
+            else:
+                yt.streams.filter(
+                    mime_type="audio/webm", abr="160kbps"
+                ).last().download(output_path=DST_AUDIO, filename=full_audioname)
+    else:
+        print(
+            f"remote file = [{remote_full_audioname}] already exists, skip download audio this time"
+        )
+
+    # merge video/audio if needed
+    if not PROGRESSIVE:
+        try:
+            # Load the video clip
+            video_clip = VideoFileClip(remote_full_filename)
+            print(video_clip.duration)
+
+            # Load the audio clip
+            audio_clip = AudioFileClip(remote_full_audioname)
+            print(audio_clip.duration)
+
+            # Assign the audio to the video clip
+            final_clip = video_clip
+            final_clip.audio = audio_clip
+            print(final_clip.duration)
+
+            if not final_clip.audio or RECONVERT:
+                # Write the final video with the combined audio
+                print(
+                    f"Write the final video with the combined audio = {remote_full_filename}.mp4"
+                )
+                final_clip.write_videofile(
+                    f"{remote_full_filename}.mp4", codec="libx264", audio_codec="aac"
+                )
+                shutil.move(f"{remote_full_filename}.mp4", remote_full_filename)
+                print(
+                    f"Video and audio combined successfully and saved to {remote_full_filename}"
+                )
+            else:
+                print(
+                    f"remote file = [{remote_full_filename}] already exists, skip merge video/audio this time"
+                )
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
+        finally:
+            # Close the clips to release resources
+            if "video_clip" in locals() and video_clip is not None:
+                video_clip.close()
+            if "audio_clip" in locals() and audio_clip is not None:
+                audio_clip.close()
+            if "final_clip" in locals() and final_clip is not None:
+                final_clip.close()
+        # videoclip = VideoFileClip(remote_full_filename)
+        # audioclip = AudioFileClip(remote_full_audioname)
+        # if not videoclip.audio:
+        #     # videoclip = videoclip.set_audio(audioclip)
+        #     new_audioclip = CompositeAudioClip([audioclip])
+        #     videoclip.audio = new_audioclip
+        #     videoclip.write_videofile(remote_full_filename)
+
+
+def download_videos(videos):
+    for video in videos:
+        if isinstance(video, str):
+            url = video
+        elif isinstance(video, YouTube):
+            url = video.watch_url
+        print(f"Downloading url = {url}")
+        try:
+            download_yt(url)
+        except BotDetection:
+            print(f"fail to download url = {url} due to detected as a bot")
+        except Exception:
+            print(f"fail to download url = {url}")
+
+
+def move_files():
+    print(os.getcwd())
+    videos = glob.glob(r"*.{ext}".format(ext=EXT))
+    print(videos)
+    for video in videos:
+        os.rename(video, video[:MAX_FILE_LENGTH])
+        video = video[:MAX_FILE_LENGTH]
+        shutil.move(video, os.path.join(DST, video))
+
+    audios = glob.glob(r"*.{ext}".format(ext="mp3"))
+    print(audios)
+    for audio in audios:
+        os.rename(audio, audio[:MAX_FILE_LENGTH])
+        audio = audio[:MAX_FILE_LENGTH]
+        shutil.move(audio, os.path.join(DST_AUDIO, audio))
+
+
+def main():
+    print("Individual Video ...")
+    download_videos(vs)
+
+    if PLS:
+        print("Playlist ...")
+        for pl in pls:
+            try:
+                p = Playlist(pl)
+                print(f"Playlist ... {p.title}")
+                download_videos(p.videos)
+            except Exception:
+                print(f"unable to handle Playlist = {pl}")
+
+    if CLS:
+        print("Channel ...")
+        for cl in cls:
+            try:
+                c = Channel(cl)
+                print(f"Channel name ... {c.channel_name}")
+                download_videos(c.videos)
+            except Exception:
+                print(f"unable to handle Channel = {cl}")
+
+    if QLS:
+        print("Search ...")
+        filters = {
+            "upload_date": Filter.get_upload_date("Last Hour"),
+            "type": Filter.get_type("Video"),
+            # "duration": Filter.get_duration("Under 4 minutes"),
+            # "features": [Filter.get_features("4K"), Filter.get_features("Creative Commons")],
+            "sort_by": Filter.get_sort_by("Upload date"),
+        }
+        for ql in qls:
+            try:
+                q = Search(ql, filters=filters)
+                download_videos(q.videos)
+            except Exception:
+                print(f"unable to handle Search = {ql}")
+
+
+main()
+move_files()
