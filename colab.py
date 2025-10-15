@@ -151,7 +151,9 @@ def download_yt(url):
     # download caption
     for caption in yt.captions.keys():
         print(caption.name)
-        remote_full_captionname = os.path.join(DST, f"{full_filename}.{caption}.txt")
+        remote_full_captionname = os.path.join(
+            DST, f"{full_filename}.{caption.code}.txt"
+        )
         caption.save_captions(remote_full_captionname)
 
     # download video
