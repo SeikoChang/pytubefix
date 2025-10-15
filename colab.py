@@ -13,22 +13,36 @@ from moviepy import AudioFileClip, VideoFileClip
 
 MAX_FILE_LENGTH = 63
 DRY_RUN = False
-EXT = "mp4"
-DST = "/content/drive/MyDrive/MTV"
-DST_AUDIO = "/content/drive/MyDrive/MTV-Audio"
+DOWNLOAD_ALL = False
+DST = "./content/drive/MyDrive/MTV"
+DST_AUDIO = "./content/drive/MyDrive/MTV-Audio"
 
+CAPTION = True
+
+VIDEO = True
+VIDEO_EXT = "mp4"
 VIDEO_MIME = "mp4"
 VIDEO_RES = "1080p"
+VIDEO_CODE = "av1"
 PROGRESSIVE = False
-ORDER_BY = "resolution"
+# ADAPTIVE = True
+ORDER_BY = "itag"
 
 AUDIO = True
+AUDIO_EXT = "mp3"
+AUDIO_MIME = "mp4"
+AUDIO_BITRATE = "128kbps"
+AUDIO_CODE = "abr"
+AUDIO_KEEP_ORI = True
 RECONVERT = True
+CONVERT_VIDEO_CODE = (
+    None  # "libx264" by fefault for .mp4, leave None for auto detection
+)
+CONVERT_AUDIO_CODE = None  # "aac" by default for .mp4, leave None for auto detection
 
 PLS = True
 CLS = False
 QLS = False
-
 os.makedirs(DST, exist_ok=True)
 os.makedirs(DST_AUDIO, exist_ok=True)
 
@@ -89,7 +103,7 @@ pls = [
 # pls = ['https://youtube.com/playlist?list=OLAK5uy_kJntk1t2jZLBJiqhTgEXmghjA8AIJEiAg&si=o5bTGMwc0345MnQv']
 pls = [
     # "https://youtube.com/playlist?list=PLf8MTi2c_8X8Vz5JGI57tNy2BlbjZkMxC&si=PliaxKExX5U48kPV",
-    # "https://youtube.com/playlist?list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
+    "https://youtube.com/playlist?list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
     "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9XM74Pk2PuTKNo39C8bqTJ",
 ]
 
@@ -133,9 +147,8 @@ def download_yt(url):
         # client='ANDROID',  # 'WEB'
     )
 
-    print(yt.title)
-    print(f"Title: {yt.title}")
     print(f"URL: {yt.watch_url}")
+    print(f"Title: {yt.title}")
     print(f"Duration: {yt.length} sec")
     print("---")
     if DRY_RUN:
@@ -146,91 +159,136 @@ def download_yt(url):
     #   print(i, vid)
 
     filename = helpers.safe_filename(s=yt.title, max_length=MAX_FILE_LENGTH)
-    full_filename = f"{filename}.{EXT}"
+    full_filename = f"{filename}.{VIDEO_EXT}"
 
-    # download caption
-    for caption in yt.captions.keys():
-        print(caption.name)
-        remote_full_captionname = os.path.join(
-            DST, f"{full_filename}.{caption.code}.txt"
-        )
-        caption.save_captions(remote_full_captionname)
+    # if DOWNLOAD_ALL:
+    #     for stream in yt.streams:
+    #         stream.download(
+    #             output_path=".",
+    #             filename=f"{filename[:16]}_{stream.itag}_{stream.subtype}_{stream.resolution}_{stream.video_codec}_{stream.abr}_{stream.audio_codec}.mp4"
+    #         )
 
-    # download video
-    remote_full_filename = os.path.join(DST, full_filename)
-    if not os.path.exists(remote_full_filename):
-        yt.streams.filter(
-            progressive=PROGRESSIVE, mime_type=f"video/{VIDEO_MIME}", res=VIDEO_RES
-        ).order_by(ORDER_BY).desc().first().download(
-            output_path=".", filename=full_filename
-        )
-        print(f"moving file from = {full_filename} to = {remote_full_filename}")
-        shutil.move(full_filename, remote_full_filename)
-    else:
-        print(
-            f"remote file = [{remote_full_filename}] already exists, skip download video this time"
-        )
+    if CAPTION:
+        # download caption
+        for caption in yt.captions.keys():
+            print(caption.name)
+            remote_full_captionname = os.path.join(
+                DST, f"{full_filename}.{caption.code}.txt"
+            )
+            caption.save_captions(remote_full_captionname)
 
-    # download audio
-    full_audioname = f"{filename}.mp3"
-    remote_full_audioname = os.path.join(DST_AUDIO, full_audioname)
-    if not os.path.exists(remote_full_audioname):
-        if AUDIO:
-            if RECONVERT and not PROGRESSIVE:
-                print(f"converting audio = {full_audioname}")
-                video = VideoFileClip(remote_full_filename)
-                audio = video.audio
-                if audio:
-                    audio.write_audiofile(full_audioname)  # , codec="pcm_s16le"
-                    shutil.move(full_audioname, remote_full_audioname)
-                else:
-                    yt.streams.filter(
-                        mime_type="audio/mp4", abr="128kbps"
-                    ).last().download(output_path=DST_AUDIO, filename=full_audioname)
-                    yt.streams.get_audio_only().download(
-                        output_path=DST_AUDIO, filename=full_audioname
-                    )
-            else:
+    if VIDEO:
+        # download video
+        video_download_folder = "."
+        remote_full_filename = os.path.join(DST, full_filename)
+        if not os.path.exists(remote_full_filename):
+            stream = (
                 yt.streams.filter(
-                    mime_type="audio/webm", abr="160kbps"
-                ).last().download(output_path=DST_AUDIO, filename=full_audioname)
-    else:
-        print(
-            f"remote file = [{remote_full_audioname}] already exists, skip download audio this time"
+                    progressive=PROGRESSIVE,
+                    mime_type=f"video/{VIDEO_MIME}",
+                    res=VIDEO_RES,
+                )
+                .order_by(ORDER_BY)
+                .desc()
+                .last()
+            )
+            print("downloading video ...")
+            stream.download(output_path=video_download_folder, filename=full_filename)
+            print(
+                f"moving video file from = {full_filename} to = {remote_full_filename}"
+            )
+            shutil.move(full_filename, remote_full_filename)
+        else:
+            print(
+                f"remote file = [{remote_full_filename}] already exists, skip download video this time"
+            )
+
+    if AUDIO:
+        # download audio
+        audio_download_folder = "."
+        full_audioname = f"{filename}.{AUDIO_EXT}"
+        full_audioname_ori = f"{filename}.{AUDIO_MIME}"
+        remote_full_audioname = os.path.join(DST_AUDIO, full_audioname)
+        audio_download_fullname = os.path.join(
+            audio_download_folder, full_audioname_ori
         )
+        if not os.path.exists(remote_full_audioname):
+            print(f"converting audio = {full_audioname}")
+            video = VideoFileClip(remote_full_filename)
+            audio = video.audio
+            if not audio:
+                print(
+                    "no audio track found from origional video, downloading audio stream instead ..."
+                )
+                stream = (
+                    yt.streams.filter(
+                        mime_type=f"audio/{AUDIO_MIME}", abr=AUDIO_BITRATE
+                    )
+                    .asc()
+                    .first()
+                )
+                print("downloading audio ...")
+                stream.download(
+                    output_path=audio_download_folder, filename=full_audioname_ori
+                )
+                # yt.streams.get_audio_only().download(
+                #     output_path=DST_AUDIO, filename=full_audioname
+                # )
+                audio = AudioFileClip(audio_download_fullname)
+            audio.write_audiofile(
+                filename=remote_full_audioname, codec=CONVERT_AUDIO_CODE
+            )
+            if AUDIO_KEEP_ORI and AUDIO_MIME != AUDIO_EXT:
+                shutil.move(
+                    audio_download_fullname, os.path.join(DST_AUDIO, full_audioname_ori)
+                )
+            else:
+                os.remove(audio_download_fullname)
+            # codec="pcm_s16le" for '.wav' ="libmp3lame" for '.mp3',
+            # default to detect by file extension name
+        else:
+            print(
+                f"remote file = [{remote_full_audioname}] already exists, skip download audio this time"
+            )
 
     # merge video/audio if needed
-    if not PROGRESSIVE:
+    if RECONVERT:
         try:
             # Load the video clip
             video_clip = VideoFileClip(remote_full_filename)
-            print(video_clip.duration)
+            print(f"video length = {video_clip.duration}")
 
             # Load the audio clip
             audio_clip = AudioFileClip(remote_full_audioname)
-            print(audio_clip.duration)
+            print(f"audio length = {audio_clip.duration}")
 
             # Assign the audio to the video clip
             final_clip = video_clip
             final_clip.audio = audio_clip
-            print(final_clip.duration)
 
-            if not final_clip.audio or RECONVERT:
-                # Write the final video with the combined audio
-                print(
-                    f"Write the final video with the combined audio = {remote_full_filename}.mp4"
-                )
-                final_clip.write_videofile(
-                    f"{remote_full_filename}.mp4", codec="libx264", audio_codec="aac"
-                )
-                shutil.move(f"{remote_full_filename}.mp4", remote_full_filename)
-                print(
-                    f"Video and audio combined successfully and saved to {remote_full_filename}"
-                )
-            else:
-                print(
-                    f"remote file = [{remote_full_filename}] already exists, skip merge video/audio this time"
-                )
+            # Write the final video with the combined audio
+            print(
+                f"Write the final video with the combined audio = {remote_full_filename}"
+            )
+            final_clip.write_videofile(
+                filename=full_filename,
+                codec=CONVERT_VIDEO_CODE,
+                audio_codec=CONVERT_AUDIO_CODE,
+            )
+            # videoclip = VideoFileClip(remote_full_filename)
+            # audioclip = AudioFileClip(remote_full_audioname)
+            # if not videoclip.audio:
+            #     # videoclip = videoclip.set_audio(audioclip)
+            #     new_audioclip = CompositeAudioClip([audioclip])
+            #     videoclip.audio = new_audioclip
+            #     videoclip.write_videofile(remote_full_filename)
+            print(
+                f"moving converted video from = {full_filename} to = {remote_full_filename}"
+            )
+            shutil.move(full_filename, remote_full_filename)
+            print(
+                f"Video and audio combined successfully and saved to {remote_full_filename}"
+            )
 
         except Exception as e:
             print(f"An error occurred: {e}")
@@ -243,13 +301,6 @@ def download_yt(url):
                 audio_clip.close()
             if "final_clip" in locals() and final_clip is not None:
                 final_clip.close()
-        # videoclip = VideoFileClip(remote_full_filename)
-        # audioclip = AudioFileClip(remote_full_audioname)
-        # if not videoclip.audio:
-        #     # videoclip = videoclip.set_audio(audioclip)
-        #     new_audioclip = CompositeAudioClip([audioclip])
-        #     videoclip.audio = new_audioclip
-        #     videoclip.write_videofile(remote_full_filename)
 
 
 def download_videos(videos):
@@ -269,14 +320,14 @@ def download_videos(videos):
 
 def move_files():
     print(os.getcwd())
-    videos = glob.glob(r"*.{ext}".format(ext=EXT))
+    videos = glob.glob(r"*.{ext}".format(ext=VIDEO_EXT))
     print(videos)
     for video in videos:
         os.rename(video, video[:MAX_FILE_LENGTH])
         video = video[:MAX_FILE_LENGTH]
         shutil.move(video, os.path.join(DST, video))
 
-    audios = glob.glob(r"*.{ext}".format(ext="mp3"))
+    audios = glob.glob(r"*.{ext}".format(ext=VIDEO_EXT))
     print(audios)
     for audio in audios:
         os.rename(audio, audio[:MAX_FILE_LENGTH])
