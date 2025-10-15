@@ -63,7 +63,7 @@ class Caption:
         recompiles them into the "SubRip Subtitle" format.
         """
         return self.xml_caption_to_srt(self.xml_captions)
-        
+
     def generate_txt_captions(self) -> str:
         """Generate Text captions.
 

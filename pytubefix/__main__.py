@@ -503,7 +503,7 @@ class YouTube:
                 return self._vid_info
             optional_client = self.client
 
-        def call_innertube(optional_client):
+        def call_innertube():
             innertube = InnerTube(
                 client=optional_client,
                 use_oauth=self.use_oauth,
@@ -532,7 +532,7 @@ class YouTube:
                 self.po_token = innertube.access_po_token or self.pot
             return response
 
-        innertube_response = call_innertube(optional_client)
+        innertube_response = call_innertube()
         for client in self.fallback_clients:
             # Some clients are unable to access certain types of videos
             # If the video is unavailable for the current client, attempts will be made with fallback clients

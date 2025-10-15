@@ -330,7 +330,7 @@ class Stream:
         max_retries: int = 0,
         interrupt_checker: Optional[Callable[[], bool]] = None
     ) -> Optional[str]:
-        
+
         """
         Downloads a file from the URL provided by `self.url` and saves it locally with optional configurations.
 
@@ -354,7 +354,7 @@ class Stream:
             - The `interrupt_checker` allows for the download to be halted cleanly if certain conditions are met during the download process.
             - Download progress can be monitored using the `on_progress` callback, and the `on_complete` callback is triggered once the download is finished.
         """
-   
+
         kernel = sys.platform
 
         if kernel == "linux":
@@ -362,8 +362,8 @@ class Stream:
         elif kernel == "darwin":
             file_system = "APFS"
         else:
-            file_system = "NTFS"  
-                
+            file_system = "NTFS"
+
         translation_table = file_system_verify(file_system)
 
         if filename is None:
