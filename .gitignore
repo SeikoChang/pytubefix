@@ -143,7 +143,12 @@ test/**/*.xml
 .virtualenv
 venv/
 env/
+.venv/
+pyvenv.cfg
+pytubefix/bin/
 
+download/
+content/
 # Token cache location
 __cache__/
 
