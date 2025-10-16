@@ -1,6 +1,8 @@
+from functools import wraps
 import os
 import glob
 import shutil
+import time
 from pytubefix import YouTube
 from pytubefix import Playlist
 from pytubefix import Channel
@@ -119,6 +121,31 @@ qls = [
 ]
 
 
+def retry_function(retries=1, delay=1):
+    def outer_d_f(func):
+        @wraps(func)
+        def wraps_func(*args, **kargs):
+            for i in range(1, retries + 1):
+                try:
+                    return func(*args, **kargs)
+                except Exception as e:
+                    print(
+                        "retry [fun: {}.{}] [{}/{}]] delay [{}] secs, reason: {}".format(
+                            func.__module__, func.__name__, i, retries, delay, e
+                        )
+                    )
+                    time.sleep(delay)
+                    err = str(e)
+            else:
+                raise Exception(
+                    "[fun: {}.{}] {}".format(func.__module__, func.__name__, err)
+                )
+
+        return wraps_func
+
+    return outer_d_f
+
+
 def remove_characters(filename):
     _filename = ""
     for c in filename:
@@ -138,6 +165,7 @@ def remove_characters(filename):
     # filename = filename.replace('>"' , " ")
 
 
+@retry_function(retries=3, delay=30)
 def download_yt(url):
     yt = YouTube(
         url=url,
