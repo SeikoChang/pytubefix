@@ -147,7 +147,7 @@ def download_yt(url):
         # client='ANDROID',  # 'WEB'
     )
 
-    print(f"URL: {yt.watch_url}")
+    # print(f"URL: {yt.watch_url}")
     print(f"Title: {yt.title}")
     print(f"Duration: {yt.length} sec")
     print("---")
@@ -363,7 +363,7 @@ def main():
     if QLS:
         print("Search ...")
         filters = {
-            "upload_date": Filter.get_upload_date("Last Hour"),
+            "upload_date": Filter.get_upload_date("Today"),  # Today, Last Hour
             "type": Filter.get_type("Video"),
             # "duration": Filter.get_duration("Under 4 minutes"),
             # "features": [Filter.get_features("4K"), Filter.get_features("Creative Commons")],

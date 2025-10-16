@@ -12,7 +12,7 @@ from pytubefix.cli import on_progress
 from moviepy import AudioFileClip, CompositeAudioClip, VideoFileClip
 
 MAX_FILE_LENGTH = 63
-DRY_RUN = False
+DRY_RUN = True
 DOWNLOAD_ALL = False
 DST = "./content/drive/MyDrive/MTV"
 DST_AUDIO = "./content/drive/MyDrive/MTV-Audio"
@@ -28,7 +28,7 @@ PROGRESSIVE = False
 # ADAPTIVE = True
 ORDER_BY = "itag"
 
-AUDIO = True
+AUDIO = False
 AUDIO_EXT = "mp3"
 AUDIO_MIME = "mp4"
 AUDIO_BITRATE = "128kbps"
@@ -40,9 +40,9 @@ CONVERT_VIDEO_CODE = (
 )
 CONVERT_AUDIO_CODE = None  # "aac" by default for .mp4, leave None for auto detection
 
-PLS = True
+PLS = False
 CLS = False
-QLS = False
+QLS = True
 
 
 os.makedirs(DST, exist_ok=True)
@@ -68,7 +68,9 @@ cls = [
 qls = [
     # "Programming Knowledge",
     # "GitHub Issue Best Practices",
-    "global news"
+    "global news",
+    "breaking news"
+    "台灣 新聞"
 ]
 
 
@@ -100,7 +102,7 @@ def download_yt(url):
         # client='ANDROID',  # 'WEB'
     )
 
-    print(f"URL: {yt.watch_url}")
+    # print(f"URL: {yt.watch_url}")
     print(f"Title: {yt.title}")
     print(f"Duration: {yt.length} sec")
     print("---")
@@ -316,7 +318,7 @@ def main():
     if QLS:
         print("Search ...")
         filters = {
-            "upload_date": Filter.get_upload_date("Last Hour"),
+            "upload_date": Filter.get_upload_date("Today"),  # Today, Last Hour
             "type": Filter.get_type("Video"),
             # "duration": Filter.get_duration("Under 4 minutes"),
             # "features": [Filter.get_features("4K"), Filter.get_features("Creative Commons")],
