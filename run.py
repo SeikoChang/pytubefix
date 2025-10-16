@@ -19,7 +19,7 @@ DST_AUDIO = "./content/drive/MyDrive/MTV-Audio"
 
 CAPTION = True
 
-VIDEO = True
+VIDEO = False
 VIDEO_EXT = "mp4"
 VIDEO_MIME = "mp4"
 VIDEO_RES = "1080p"
@@ -34,7 +34,7 @@ AUDIO_MIME = "mp4"
 AUDIO_BITRATE = "128kbps"
 AUDIO_CODE = "abr"
 AUDIO_KEEP_ORI = True
-RECONVERT = True
+RECONVERT = False
 CONVERT_VIDEO_CODE = (
     None  # "libx264" by fefault for .mp4, leave None for auto detection
 )
@@ -56,8 +56,8 @@ vs = [
 
 pls = [
     # "https://youtube.com/playlist?list=PLf8MTi2c_8X8Vz5JGI57tNy2BlbjZkMxC&si=PliaxKExX5U48kPV",
-    "https://youtube.com/playlist?list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
-    # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9XM74Pk2PuTKNo39C8bqTJ",
+    # "https://youtube.com/playlist?list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
+    "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9XM74Pk2PuTKNo39C8bqTJ",
 ]
 
 cls = [
@@ -130,10 +130,10 @@ def download_yt(url):
             )
             caption.save_captions(remote_full_captionname)
 
+    video_download_folder = "."
+    remote_full_filename = os.path.join(DST, full_filename)
     if VIDEO:
         # download video
-        video_download_folder = "."
-        remote_full_filename = os.path.join(DST, full_filename)
         if not os.path.exists(remote_full_filename):
             stream = (
                 yt.streams.filter(
@@ -145,6 +145,8 @@ def download_yt(url):
                 .desc()
                 .last()
             )
+            if not stream:
+                stream = yt.streams.get_highest_resolution(progressive=PROGRESSIVE)
             print("downloading video ...")
             stream.download(output_path=video_download_folder, filename=full_filename)
             print(
@@ -156,19 +158,21 @@ def download_yt(url):
                 f"remote file = [{remote_full_filename}] already exists, skip download video this time"
             )
 
+    audio_download_folder = "."
+    full_audioname = f"{filename}.{AUDIO_EXT}"
+    full_audioname_ori = f"{filename}.{AUDIO_MIME}"
+    remote_full_audioname = os.path.join(DST_AUDIO, full_audioname)
+    audio_download_fullname = os.path.join(
+        audio_download_folder, full_audioname_ori
+    )
     if AUDIO:
         # download audio
-        audio_download_folder = "."
-        full_audioname = f"{filename}.{AUDIO_EXT}"
-        full_audioname_ori = f"{filename}.{AUDIO_MIME}"
-        remote_full_audioname = os.path.join(DST_AUDIO, full_audioname)
-        audio_download_fullname = os.path.join(
-            audio_download_folder, full_audioname_ori
-        )
         if not os.path.exists(remote_full_audioname):
             print(f"converting audio = {full_audioname}")
-            video = VideoFileClip(remote_full_filename)
-            audio = video.audio
+            audio = None
+            if os.path.exists(remote_full_filename):
+                video = VideoFileClip(remote_full_filename)
+                audio = video.audio
             if not audio:
                 print("no audio track found from origional video, downloading audio stream instead ...")
                 stream = (
@@ -178,13 +182,12 @@ def download_yt(url):
                     .asc()
                     .first()
                 )
+                if not stream:
+                    stream = yt.streams.get_audio_only(subtype=AUDIO_MIME)
                 print("downloading audio ...")
                 stream.download(
                     output_path=audio_download_folder, filename=full_audioname_ori
                 )
-                # yt.streams.get_audio_only().download(
-                #     output_path=DST_AUDIO, filename=full_audioname
-                # )
                 audio = AudioFileClip(audio_download_fullname)
             audio.write_audiofile(
                 filename=remote_full_audioname, codec=CONVERT_AUDIO_CODE
