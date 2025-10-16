@@ -14,14 +14,14 @@ from pytubefix.cli import on_progress
 from moviepy import AudioFileClip, CompositeAudioClip, VideoFileClip
 
 MAX_FILE_LENGTH = 63
-DRY_RUN = True
+DRY_RUN = False
 DOWNLOAD_ALL = False
 DST = "./content/drive/MyDrive/MTV"
 DST_AUDIO = "./content/drive/MyDrive/MTV-Audio"
 
 CAPTION = True
 
-VIDEO = False
+VIDEO = True
 VIDEO_EXT = "mp4"
 VIDEO_MIME = "mp4"
 VIDEO_RES = "1080p"
@@ -30,22 +30,24 @@ PROGRESSIVE = False
 # ADAPTIVE = True
 ORDER_BY = "itag"
 
-AUDIO = False
+AUDIO = True
 AUDIO_EXT = "mp3"
 AUDIO_MIME = "mp4"
 AUDIO_BITRATE = "128kbps"
 AUDIO_CODE = "abr"
 AUDIO_KEEP_ORI = True
-RECONVERT = False
+
+RECONVERT = True
 CONVERT_VIDEO_CODE = (
     None  # "libx264" by fefault for .mp4, leave None for auto detection
 )
-CONVERT_AUDIO_CODE = None  # "aac" by default for .mp4, leave None for auto detection
+CONVERT_AUDIO_CODE = (
+    "aac"  # "libmp3lame" by default for .mp4, leave None for auto detection
+)
 
 PLS = False
 CLS = False
-QLS = True
-
+QLS = False
 
 os.makedirs(DST, exist_ok=True)
 os.makedirs(DST_AUDIO, exist_ok=True)
@@ -53,12 +55,12 @@ os.makedirs(DST_AUDIO, exist_ok=True)
 vs = [
     # "https://www.youtube.com/watch?v=zb3nAoJJGYo",
     # "https://www.youtube.com/watch?v=BmtYHnvQcqw",
-    # "https://www.youtube.com/watch?v=6F-fAlGA0q0&list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
+    "https://www.youtube.com/watch?v=6F-fAlGA0q0&list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
 ]
 
 pls = [
     # "https://youtube.com/playlist?list=PLf8MTi2c_8X8Vz5JGI57tNy2BlbjZkMxC&si=PliaxKExX5U48kPV",
-    # "https://youtube.com/playlist?list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
+    "https://youtube.com/playlist?list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
     "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9XM74Pk2PuTKNo39C8bqTJ",
 ]
 
@@ -71,8 +73,7 @@ qls = [
     # "Programming Knowledge",
     # "GitHub Issue Best Practices",
     "global news",
-    "breaking news"
-    "台灣 新聞"
+    "breaking news" "台灣 新聞",
 ]
 
 
@@ -177,7 +178,9 @@ def download_yt(url):
             )
             if not stream:
                 stream = yt.streams.get_highest_resolution(progressive=PROGRESSIVE)
-            print("downloading video ...")
+            print(
+                f"downloading video ... itag = {stream.itag} res = {stream.resolution} video_code = {stream.video_codec} abr = {stream.abr} audio_code = {stream.audio_codec}"
+            )
             stream.download(output_path=video_download_folder, filename=full_filename)
             print(
                 f"moving video file from = {full_filename} to = {remote_full_filename}"
@@ -192,9 +195,7 @@ def download_yt(url):
     full_audioname = f"{filename}.{AUDIO_EXT}"
     full_audioname_ori = f"{filename}.{AUDIO_MIME}"
     remote_full_audioname = os.path.join(DST_AUDIO, full_audioname)
-    audio_download_fullname = os.path.join(
-        audio_download_folder, full_audioname_ori
-    )
+    audio_download_fullname = os.path.join(audio_download_folder, full_audioname_ori)
     if AUDIO:
         # download audio
         if not os.path.exists(remote_full_audioname):
@@ -204,7 +205,9 @@ def download_yt(url):
                 video = VideoFileClip(remote_full_filename)
                 audio = video.audio
             if not audio:
-                print("no audio track found from origional video, downloading audio stream instead ...")
+                print(
+                    "no audio track found from origional video, downloading audio stream instead ..."
+                )
                 stream = (
                     yt.streams.filter(
                         mime_type=f"audio/{AUDIO_MIME}", abr=AUDIO_BITRATE
@@ -214,7 +217,9 @@ def download_yt(url):
                 )
                 if not stream:
                     stream = yt.streams.get_audio_only(subtype=AUDIO_MIME)
-                print("downloading audio ...")
+                print(
+                    f"downloading audio ... itag = {stream.itag} res = {stream.resolution} video_code = {stream.video_codec} abr = {stream.abr} audio_code = {stream.audio_codec}"
+                )
                 stream.download(
                     output_path=audio_download_folder, filename=full_audioname_ori
                 )
@@ -346,7 +351,9 @@ def main():
     if QLS:
         print("Search ...")
         filters = {
-            "upload_date": Filter.get_upload_date("Today"),  # Today, Last Hour
+            "upload_date": Filter.get_upload_date(
+                "This Week"
+            ),  # Today, Last Hour, This Week
             "type": Filter.get_type("Video"),
             # "duration": Filter.get_duration("Under 4 minutes"),
             # "features": [Filter.get_features("4K"), Filter.get_features("Creative Commons")],

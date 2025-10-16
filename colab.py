@@ -36,15 +36,19 @@ AUDIO_MIME = "mp4"
 AUDIO_BITRATE = "128kbps"
 AUDIO_CODE = "abr"
 AUDIO_KEEP_ORI = True
+
 RECONVERT = False
 CONVERT_VIDEO_CODE = (
     None  # "libx264" by fefault for .mp4, leave None for auto detection
 )
-CONVERT_AUDIO_CODE = None  # "aac" by default for .mp4, leave None for auto detection
+CONVERT_AUDIO_CODE = (
+    "aac"  # "libmp3lame" by default for .mp4, leave None for auto detection
+)
 
 PLS = True
 CLS = False
 QLS = False
+
 os.makedirs(DST, exist_ok=True)
 os.makedirs(DST_AUDIO, exist_ok=True)
 
@@ -222,7 +226,9 @@ def download_yt(url):
             )
             if not stream:
                 stream = yt.streams.get_highest_resolution(progressive=PROGRESSIVE)
-            print("downloading video ...")
+            print(
+                f"downloading video ... itag = {stream.itag} res = {stream.resolution} video_code = {stream.video_codec} abr = {stream.abr} audio_code = {stream.audio_codec}"
+            )
             stream.download(output_path=video_download_folder, filename=full_filename)
             print(
                 f"moving video file from = {full_filename} to = {remote_full_filename}"
@@ -259,7 +265,9 @@ def download_yt(url):
                 )
                 if not stream:
                     stream = yt.streams.get_audio_only(subtype=AUDIO_MIME)
-                print("downloading audio ...")
+                print(
+                    f"downloading audio ... itag = {stream.itag} res = {stream.resolution} video_code = {stream.video_codec} abr = {stream.abr} audio_code = {stream.audio_codec}"
+                )
                 stream.download(
                     output_path=audio_download_folder, filename=full_audioname_ori
                 )
