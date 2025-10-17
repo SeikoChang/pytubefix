@@ -16,12 +16,12 @@ from moviepy import AudioFileClip, CompositeAudioClip, VideoFileClip
 MAX_FILE_LENGTH = 63
 DRY_RUN = False
 DOWNLOAD_ALL = False
-DST = "./content/drive/MyDrive/MTV"
-DST_AUDIO = "./content/drive/MyDrive/MTV-Audio"
+DST = "./content/drive/MyDrive/EVA"
+DST_AUDIO = "./content/drive/MyDrive/EVA-Audio"
 
 CAPTION = True
 
-VIDEO = True
+VIDEO = False
 VIDEO_EXT = "mp4"
 VIDEO_MIME = "mp4"
 VIDEO_RES = "1080p"
@@ -37,7 +37,7 @@ AUDIO_BITRATE = "128kbps"
 AUDIO_CODE = "abr"
 AUDIO_KEEP_ORI = True
 
-RECONVERT = True
+RECONVERT = False
 CONVERT_VIDEO_CODE = (
     None  # "libx264" by fefault for .mp4, leave None for auto detection
 )
@@ -45,7 +45,7 @@ CONVERT_AUDIO_CODE = (
     "aac"  # "libmp3lame" by default for .mp4, leave None for auto detection
 )
 
-PLS = False
+PLS = True
 CLS = False
 QLS = False
 
@@ -55,13 +55,14 @@ os.makedirs(DST_AUDIO, exist_ok=True)
 vs = [
     # "https://www.youtube.com/watch?v=zb3nAoJJGYo",
     # "https://www.youtube.com/watch?v=BmtYHnvQcqw",
-    "https://www.youtube.com/watch?v=6F-fAlGA0q0&list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
+    # "https://www.youtube.com/watch?v=6F-fAlGA0q0&list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
 ]
 
 pls = [
     # "https://youtube.com/playlist?list=PLf8MTi2c_8X8Vz5JGI57tNy2BlbjZkMxC&si=PliaxKExX5U48kPV",
-    "https://youtube.com/playlist?list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
-    "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9XM74Pk2PuTKNo39C8bqTJ",
+    # "https://youtube.com/playlist?list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
+    # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9XM74Pk2PuTKNo39C8bqTJ",
+    "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9CEJU-Unr7Gs6I3RYh6r1Y",
 ]
 
 cls = [
@@ -225,7 +226,7 @@ def download_yt(url):
                 )
                 audio = AudioFileClip(audio_download_fullname)
             audio.write_audiofile(
-                filename=remote_full_audioname, codec=CONVERT_AUDIO_CODE
+                filename=remote_full_audioname, codec=None
             )
             if AUDIO_KEEP_ORI and AUDIO_MIME != AUDIO_EXT:
                 shutil.move(

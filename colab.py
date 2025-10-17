@@ -16,17 +16,17 @@ from moviepy import AudioFileClip, VideoFileClip
 MAX_FILE_LENGTH = 63
 DRY_RUN = False
 DOWNLOAD_ALL = False
-DST = "/content/drive/MyDrive/MTV"
-DST_AUDIO = "/content/drive/MyDrive/MTV-Audio"
+DST = "/content/drive/MyDrive/EVA"
+DST_AUDIO = "/content/drive/MyDrive/EVA-Audio"
 
 CAPTION = True
 
-VIDEO = True
+VIDEO = False
 VIDEO_EXT = "mp4"
 VIDEO_MIME = "mp4"
 VIDEO_RES = "1080p"
 VIDEO_CODE = "av1"
-PROGRESSIVE = True
+PROGRESSIVE = False
 # ADAPTIVE = True
 ORDER_BY = "itag"
 
@@ -52,38 +52,6 @@ QLS = False
 os.makedirs(DST, exist_ok=True)
 os.makedirs(DST_AUDIO, exist_ok=True)
 
-vs = ["https://www.youtube.com/watch?v=rtOvBOTyX00"]
-vs = [
-    "https://youtu.be/DFZ0bgl_bk0?si=pqWYyE3t-O7t-ChO",
-    "https://youtu.be/QzJtNJz3nEE?si=ZtNCRtsdNewhuNFr",
-]
-vs = []
-# vs = ['https://youtu.be/vsBf_0gDxSM?si=AjrxCxKfXmveao3C']
-vs = ["https://youtu.be/z9vs_UCmfdA?si=B8SkVqYN40le8PsW"]
-vs = ["https://youtu.be/3AllSrBdZkw?si=LEDv6aN1LEHfuzZ_"]
-vs = [
-    "https://youtu.be/P_fpDYAmTS8?si=njf-b38tjrVABUyz",
-    "https://youtu.be/Lix7UKHADO8?si=6yUaouQSF8NYOsnt",
-    "https://www.youtube.com/watch?v=arFomZzJ_i4",
-    "https://www.youtube.com/watch?v=larGBsOOZpo",
-    "https://www.youtube.com/watch?v=tiTVRnC9wQI&list=RDCMUCP1pFY0CA9KZKpXcWjM74ng&index=4",
-    "https://www.youtube.com/watch?v=OG1D2QLr0Yc",
-    "https://www.youtube.com/watch?v=0k6SjTDZrr0",
-    "https://www.youtube.com/watch?v=NCdeYnHSO1Y",
-    "https://www.youtube.com/watch?v=ntAhWr-BxBY",
-    "https://www.youtube.com/watch?v=2dm8QT69uKQ",
-    "https://www.youtube.com/watch?v=larGBsOOZpo",
-    "https://www.youtube.com/watch?v=_Q1BC6ZE_X4",
-    "https://www.youtube.com/watch?v=fglMo-HzM7w",
-    "https://www.youtube.com/watch?v=-iKpz9_NAUY",
-    "https://www.youtube.com/watch?v=FNPWu6mF7Ng",
-    "https://www.youtube.com/watch?v=9emovy-WhTU",
-    "https://www.youtube.com/watch?v=EUvtXXZAoLc",
-    "https://www.youtube.com/watch?v=g7Hki0V1lbw",
-    "https://www.youtube.com/watch?v=Qt2f0GOdIbo",
-    "https://www.youtube.com/watch?v=c7uDOVzd8yA",
-    "https://www.youtube.com/watch?v=WwCgKptrhmU",
-]
 vs = [
     # "https://www.youtube.com/watch?v=zb3nAoJJGYo",
     # "https://www.youtube.com/watch?v=BmtYHnvQcqw",
@@ -91,26 +59,10 @@ vs = [
 ]
 
 pls = [
-    "https://youtube.com/playlist?list=PLz1h4thc0ElpqXIV7Pv5UXjKH_u_vH8Vf&si=NTcTg9IkCN944AQ9",
-    "https://youtube.com/playlist?list=PLz1h4thc0ElrDORL-moPo9XiWQLjuTgYf&si=Fz44s8fDeNO6FbBI",
-    "https://youtube.com/playlist?list=PLz1h4thc0ElqHnueOFZ3mQAEioGISNtCy&si=6YLtdIuBbMo85SBj",
-    "https://youtube.com/playlist?list=PLCfe0YLBOKlRDeEqif2tBF7ngO0nCAy4K&si=UQCsWhnb2XBZ81s4",
-]
-pls = ["https://www.youtube.com/playlist?list=PLf8MTi2c_8X_dq38yM1laTWHmwCjSCqqE"]
-pls = [
-    "https://youtube.com/playlist?list=PLD1bKrYdYW5fQ7lTW9Inq0UqCZ8trBRBK&si=1kcTKm8cEe_WHIle"
-]
-pls = [
-    "https://www.youtube.com/watch?v=zTJ_DGqaIn0&list=PLf8MTi2c_8X_L8uzkrO4sQGZ5QBMH5uBI"
-]
-
-# pls =o['https://youtube.com/playlist?list=PLf8MTi2c_8X9IiAGMUMD9VdW2Ko69Vdzl&si=D2DQ1_N33VZ7CqLu']
-# pls = ['https://www.youtube.com/playlist?list=PLf8MTi2c_8X-oBWcMcaZk27-lYhiRvhFy', 'https://www.youtube.com/playlist?list=PLf8MTi2c_8X8ocIAwLm4bPn1YMcPTGt3D']
-# pls = ['https://youtube.com/playlist?list=OLAK5uy_kJntk1t2jZLBJiqhTgEXmghjA8AIJEiAg&si=o5bTGMwc0345MnQv']
-pls = [
     # "https://youtube.com/playlist?list=PLf8MTi2c_8X8Vz5JGI57tNy2BlbjZkMxC&si=PliaxKExX5U48kPV",
-    "https://youtube.com/playlist?list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
-    "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9XM74Pk2PuTKNo39C8bqTJ",
+    # "https://youtube.com/playlist?list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
+    # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9XM74Pk2PuTKNo39C8bqTJ",
+    "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9CEJU-Unr7Gs6I3RYh6r1Y",
 ]
 
 cls = [
@@ -121,7 +73,8 @@ cls = [
 qls = [
     # "Programming Knowledge",
     # "GitHub Issue Best Practices",
-    "global news"
+    "global news",
+    "breaking news" "台灣 新聞",
 ]
 
 
@@ -272,9 +225,7 @@ def download_yt(url):
                     output_path=audio_download_folder, filename=full_audioname_ori
                 )
                 audio = AudioFileClip(audio_download_fullname)
-            audio.write_audiofile(
-                filename=remote_full_audioname, codec=CONVERT_AUDIO_CODE
-            )
+            audio.write_audiofile(filename=remote_full_audioname, codec=None)
             if AUDIO_KEEP_ORI and AUDIO_MIME != AUDIO_EXT:
                 shutil.move(
                     audio_download_fullname, os.path.join(DST_AUDIO, full_audioname_ori)
@@ -399,7 +350,9 @@ def main():
     if QLS:
         print("Search ...")
         filters = {
-            "upload_date": Filter.get_upload_date("Today"),  # Today, Last Hour
+            "upload_date": Filter.get_upload_date(
+                "This Week"
+            ),  # Today, Last Hour, This Week
             "type": Filter.get_type("Video"),
             # "duration": Filter.get_duration("Under 4 minutes"),
             # "features": [Filter.get_features("4K"), Filter.get_features("Creative Commons")],
