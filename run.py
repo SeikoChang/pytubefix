@@ -16,12 +16,12 @@ from moviepy import AudioFileClip, CompositeAudioClip, VideoFileClip
 MAX_FILE_LENGTH = 63
 DRY_RUN = False
 DOWNLOAD_ALL = False
-DST = "./content/drive/MyDrive/EVA"
-DST_AUDIO = "./content/drive/MyDrive/EVA-Audio"
+DST = "/content/drive/MyDrive/EVA"
+DST_AUDIO = "/content/drive/MyDrive/EVA-Audio"
 
 CAPTION = True
 
-VIDEO = False
+VIDEO = True
 VIDEO_EXT = "mp4"
 VIDEO_MIME = "mp4"
 VIDEO_RES = "1080p"
@@ -37,7 +37,7 @@ AUDIO_BITRATE = "128kbps"
 AUDIO_CODE = "abr"
 AUDIO_KEEP_ORI = True
 
-RECONVERT = False
+RECONVERT = True
 CONVERT_VIDEO_CODE = (
     None  # "libx264" by fefault for .mp4, leave None for auto detection
 )
@@ -56,18 +56,20 @@ vs = [
     # "https://www.youtube.com/watch?v=zb3nAoJJGYo",
     # "https://www.youtube.com/watch?v=BmtYHnvQcqw",
     # "https://www.youtube.com/watch?v=6F-fAlGA0q0&list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
+    # "https://www.youtube.com/watch?v=SQmVb9wcMP0",
+    "https://www.youtube.com/watch?v=HLhHMsh5a94",
 ]
 
 pls = [
     # "https://youtube.com/playlist?list=PLf8MTi2c_8X8Vz5JGI57tNy2BlbjZkMxC&si=PliaxKExX5U48kPV",
     # "https://youtube.com/playlist?list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
     # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9XM74Pk2PuTKNo39C8bqTJ",
-    "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9CEJU-Unr7Gs6I3RYh6r1Y",
+    # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9CEJU-Unr7Gs6I3RYh6r1Y",
 ]
 
 cls = [
     # "https://www.youtube.com/@ProgrammingKnowledge/featured",
-    "https://www.youtube.com/@LillianChiu101",
+    # "https://www.youtube.com/@LillianChiu101",
 ]
 
 qls = [
