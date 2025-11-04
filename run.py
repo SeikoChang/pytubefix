@@ -16,8 +16,8 @@ from moviepy import AudioFileClip, CompositeAudioClip, VideoFileClip
 MAX_FILE_LENGTH = 63
 DRY_RUN = False
 DOWNLOAD_ALL = False
-DST = "/content/drive/MyDrive/EVA"
-DST_AUDIO = "/content/drive/MyDrive/EVA-Audio"
+DST = "./content/drive/MyDrive/OKINAWA"
+DST_AUDIO = "./content/drive/MyDrive/OKINAWA-Audio"
 
 CAPTION = True
 
@@ -57,7 +57,7 @@ vs = [
     # "https://www.youtube.com/watch?v=BmtYHnvQcqw",
     # "https://www.youtube.com/watch?v=6F-fAlGA0q0&list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
     # "https://www.youtube.com/watch?v=SQmVb9wcMP0",
-    "https://www.youtube.com/watch?v=HLhHMsh5a94",
+    # "https://www.youtube.com/watch?v=HLhHMsh5a94",
 ]
 
 pls = [
@@ -65,11 +65,14 @@ pls = [
     # "https://youtube.com/playlist?list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
     # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9XM74Pk2PuTKNo39C8bqTJ",
     # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9CEJU-Unr7Gs6I3RYh6r1Y",
+    "https://www.youtube.com/playlist?list=PLm390xdh7__Kp-7I-0uCjnYRaff79DaS-",
+    "https://www.youtube.com/playlist?list=PLf8MTi2c_8X8IJcb11DCWoqTUH0QgsAOk",
 ]
 
 cls = [
     # "https://www.youtube.com/@ProgrammingKnowledge/featured",
     # "https://www.youtube.com/@LillianChiu101",
+    # "https://www.youtube.com/@kellytsaii",
 ]
 
 qls = [
