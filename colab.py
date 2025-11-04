@@ -189,7 +189,7 @@ def download_yt(url):
             shutil.move(full_filename, remote_full_filename)
         else:
             print(
-                f"remote file = [{remote_full_filename}] already exists, skip download video this time"
+                f"remote file = [{remote_full_filename}] already exists, skip downloading video this time"
             )
 
     audio_download_folder = "."
@@ -236,11 +236,18 @@ def download_yt(url):
             # default to detect by file extension name
         else:
             print(
-                f"remote file = [{remote_full_audioname}] already exists, skip download audio this time"
+                f"remote file = [{remote_full_audioname}] already exists, skip downloading audio this time"
             )
 
     # merge video/audio if needed
     if RECONVERT:
+        converted_full_filename = f"{filename}.{VIDEO_EXT}.{VIDEO_EXT}"
+        coverted_remote_full_filename = os.path.join(DST, converted_full_filename)
+        if os.path.exists(coverted_remote_full_filename):
+            print(
+                f"remote file = [{coverted_remote_full_filename}] already exists, skip converting video this time"
+            )
+            return True
         try:
             # Load the video clip
             video_clip = VideoFileClip(remote_full_filename)
@@ -256,10 +263,11 @@ def download_yt(url):
 
             # Write the final video with the combined audio
             print(
-                f"Write the final video with the combined audio = {remote_full_filename}"
+                f"Write the final video with the combined audio, \
+                    local = {converted_full_filename}, remote = {coverted_remote_full_filename}"
             )
             final_clip.write_videofile(
-                filename=full_filename,
+                filename=converted_full_filename,
                 codec=CONVERT_VIDEO_CODE,
                 audio_codec=CONVERT_AUDIO_CODE,
             )
