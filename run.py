@@ -65,8 +65,10 @@ pls = [
     # "https://youtube.com/playlist?list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
     # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9XM74Pk2PuTKNo39C8bqTJ",
     # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9CEJU-Unr7Gs6I3RYh6r1Y",
-    "https://www.youtube.com/playlist?list=PLm390xdh7__Kp-7I-0uCjnYRaff79DaS-",
-    "https://www.youtube.com/playlist?list=PLf8MTi2c_8X8IJcb11DCWoqTUH0QgsAOk",
+    "https://www.youtube.com/playlist?list=PLm390xdh7__Kp-7I-0uCjnYRaff79DaS-",  # Okinawa
+    "https://www.youtube.com/playlist?list=PLf8MTi2c_8X8IJcb11DCWoqTUH0QgsAOk",  # Okinawa
+    # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9Kmoz_rwLVYe18TOrJ9T2P",  # My HiFi
+    # "https://www.youtube.com/playlist?list=PLgQLKhyDqSaP0IPDJ7eXWvsGqOOH3_mqQ",  # 測試喇叭高HiFi音質音樂檔
 ]
 
 cls = [
@@ -284,9 +286,9 @@ def download_yt(url):
             #     videoclip.audio = new_audioclip
             #     videoclip.write_videofile(remote_full_filename)
             print(
-                f"moving converted video from = {full_filename} to = {remote_full_filename}"
+                f"moving converted video from = {converted_full_filename} to = {coverted_remote_full_filename}"
             )
-            shutil.move(full_filename, remote_full_filename)
+            shutil.move(converted_full_filename, coverted_remote_full_filename)
             print(
                 f"Video and audio combined successfully and saved to {remote_full_filename}"
             )

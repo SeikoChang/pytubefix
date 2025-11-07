@@ -16,8 +16,8 @@ from moviepy import AudioFileClip, VideoFileClip
 MAX_FILE_LENGTH = 63
 DRY_RUN = False
 DOWNLOAD_ALL = False
-DST = "/content/drive/MyDrive/EVA"
-DST_AUDIO = "/content/drive/MyDrive/EVA-Audio"
+DST = "/content/drive/MyDrive/HIFI"
+DST_AUDIO = "/content/drive/MyDrive/HIFI-Audio"
 
 CAPTION = True
 
@@ -62,7 +62,8 @@ pls = [
     # "https://youtube.com/playlist?list=PLf8MTi2c_8X8Vz5JGI57tNy2BlbjZkMxC&si=PliaxKExX5U48kPV",
     # "https://youtube.com/playlist?list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
     # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9XM74Pk2PuTKNo39C8bqTJ",
-    "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9CEJU-Unr7Gs6I3RYh6r1Y",
+    # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9CEJU-Unr7Gs6I3RYh6r1Y",
+    "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9Kmoz_rwLVYe18TOrJ9T2P",
 ]
 
 cls = [
@@ -279,9 +280,9 @@ def download_yt(url):
             #     videoclip.audio = new_audioclip
             #     videoclip.write_videofile(remote_full_filename)
             print(
-                f"moving converted video from = {full_filename} to = {remote_full_filename}"
+                f"moving converted video from = {converted_full_filename} to = {coverted_remote_full_filename}"
             )
-            shutil.move(full_filename, remote_full_filename)
+            shutil.move(converted_full_filename, coverted_remote_full_filename)
             print(
                 f"Video and audio combined successfully and saved to {remote_full_filename}"
             )
