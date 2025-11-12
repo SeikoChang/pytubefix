@@ -16,12 +16,12 @@ from moviepy import AudioFileClip, CompositeAudioClip, VideoFileClip
 MAX_FILE_LENGTH = 63
 DRY_RUN = False
 DOWNLOAD_ALL = False
-DST = "./content/drive/MyDrive/OKINAWA"
-DST_AUDIO = "./content/drive/MyDrive/OKINAWA-Audio"
+DST = "./content/drive/MyDrive/Classical"
+DST_AUDIO = "./content/drive/MyDrive/Classical-Audio"
 
 CAPTION = True
 
-VIDEO = True
+VIDEO = False
 VIDEO_EXT = "mp4"
 VIDEO_MIME = "mp4"
 VIDEO_RES = "1080p"
@@ -37,7 +37,7 @@ AUDIO_BITRATE = "128kbps"
 AUDIO_CODE = "abr"
 AUDIO_KEEP_ORI = True
 
-RECONVERT = True
+RECONVERT = False
 CONVERT_VIDEO_CODE = (
     None  # "libx264" by fefault for .mp4, leave None for auto detection
 )
@@ -58,6 +58,11 @@ vs = [
     # "https://www.youtube.com/watch?v=6F-fAlGA0q0&list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
     # "https://www.youtube.com/watch?v=SQmVb9wcMP0",
     # "https://www.youtube.com/watch?v=HLhHMsh5a94",
+    "https://youtube.com/watch?v=cFoXcO8llNI",
+    "https://youtube.com/watch?v=YsKKuCUYUMU",
+    "https://youtube.com/watch?v=bvymTFYfRmk",
+    "https://youtube.com/watch?v=TZkg2SL-dkY",
+    "https://youtube.com/watch?v=00T_pojzqpw",
 ]
 
 pls = [
@@ -65,9 +70,10 @@ pls = [
     # "https://youtube.com/playlist?list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
     # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9XM74Pk2PuTKNo39C8bqTJ",
     # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9CEJU-Unr7Gs6I3RYh6r1Y",
-    "https://www.youtube.com/playlist?list=PLm390xdh7__Kp-7I-0uCjnYRaff79DaS-",  # Okinawa
-    "https://www.youtube.com/playlist?list=PLf8MTi2c_8X8IJcb11DCWoqTUH0QgsAOk",  # Okinawa
+    # "https://www.youtube.com/playlist?list=PLm390xdh7__Kp-7I-0uCjnYRaff79DaS-",  # Okinawa
+    # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X8IJcb11DCWoqTUH0QgsAOk",  # Okinawa
     # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9Kmoz_rwLVYe18TOrJ9T2P",  # My HiFi
+    # "https://youtube.com/playlist?list=OLAK5uy_neh80RHNGYi1gPdfpaoGWpwhTzq-YLZP4",  # Le Roi Est Mort, Vive Le Roi!
     # "https://www.youtube.com/playlist?list=PLgQLKhyDqSaP0IPDJ7eXWvsGqOOH3_mqQ",  # 測試喇叭高HiFi音質音樂檔
 ]
 
