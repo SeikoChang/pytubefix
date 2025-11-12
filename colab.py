@@ -39,8 +39,8 @@ logger.addHandler(handler)
 MAX_FILE_LENGTH = 63
 DRY_RUN = False
 DOWNLOAD_ALL = False
-DST = "./content/drive/MyDrive/Classical"
-DST_AUDIO = "./content/drive/MyDrive/Classical-Audio"
+DST = "/content/drive/MyDrive/Classical"
+DST_AUDIO = "/content/drive/MyDrive/Classical-Audio"
 
 CAPTION = True
 
