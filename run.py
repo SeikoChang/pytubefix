@@ -272,9 +272,7 @@ def download_yt(url):
                     audio_download_fullname, os.path.join(DST_AUDIO, full_audioname_ori)
                 )
             else:
-                logger.info(
-                    f"remove aideo file = {audio_download_fullname}"
-                )
+                logger.info(f"remove aideo file = {audio_download_fullname}")
                 os.remove(audio_download_fullname)
             # codec="pcm_s16le" for '.wav' ="libmp3lame" for '.mp3',
             # default to detect by file extension name
@@ -353,7 +351,9 @@ def download_videos(videos):
         try:
             download_yt(url)
         except BotDetection as e:
-            logger.error(f"fail to download url = {url} due to detected as a bot err = {e}")
+            logger.error(
+                f"fail to download url = {url} due to detected as a bot err = {e}"
+            )
         except Exception as e:
             logger.error(f"fail to download url = {url} err = {e}")
 
