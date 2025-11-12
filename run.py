@@ -3,6 +3,7 @@ import glob
 import os
 import shutil
 import time
+import logging
 from pytubefix import YouTube
 from pytubefix import Playlist
 from pytubefix import Channel
@@ -12,6 +13,16 @@ from pytubefix.exceptions import BotDetection
 from pytubefix.contrib.search import Filter
 from pytubefix.cli import on_progress
 from moviepy import AudioFileClip, CompositeAudioClip, VideoFileClip
+
+logging.basicConfig(
+    format="[%(asctime)s.%(msecs)03d] [%(levelname)s]: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    filename="pytub.log",
+    level=logging.DEBUG,
+)
+logger: logging.Logger = logging.getLogger()
+handler = logging.StreamHandler()
+logger.addHandler(handler)
 
 MAX_FILE_LENGTH = 63
 DRY_RUN = False
@@ -99,7 +110,7 @@ def retry_function(retries=1, delay=1):
                 try:
                     return func(*args, **kargs)
                 except Exception as e:
-                    print(
+                    logger.error(
                         "retry [fun: {}.{}] [{}/{}]] delay [{}] secs, reason: {}".format(
                             func.__module__, func.__name__, i, retries, delay, e
                         )
@@ -135,7 +146,7 @@ def remove_characters(filename):
     # filename = filename.replace('>"' , " ")
 
 
-@retry_function(retries=3, delay=30)
+# @retry_function(retries=3, delay=30)
 def download_yt(url):
     yt = YouTube(
         url=url,
@@ -145,16 +156,16 @@ def download_yt(url):
         # client='ANDROID',  # 'WEB'
     )
 
-    # print(f"URL: {yt.watch_url}")
-    print(f"Title: {yt.title}")
-    print(f"Duration: {yt.length} sec")
-    print("---")
+    # logger.info(f"URL: {yt.watch_url}")
+    logger.info(f"Title: {yt.title}")
+    logger.info(f"Duration: {yt.length} sec")
+    logger.info("---")
     if DRY_RUN:
         return True  # for dry run
 
     # vids = yt.streams
     # for i, vid in enumerate(vids):
-    #   print(i, vid)
+    #   logger.info(i, vid)
 
     filename = helpers.safe_filename(s=yt.title, max_length=MAX_FILE_LENGTH)
     full_filename = f"{filename}.{VIDEO_EXT}"
@@ -169,7 +180,7 @@ def download_yt(url):
     if CAPTION:
         # download caption
         for caption in yt.captions.keys():
-            print(caption.name)
+            logger.debug(caption.name)
             remote_full_captionname = os.path.join(
                 DST, f"{full_filename}.{caption.code}.txt"
             )
@@ -192,16 +203,16 @@ def download_yt(url):
             )
             if not stream:
                 stream = yt.streams.get_highest_resolution(progressive=PROGRESSIVE)
-            print(
+            logger.info(
                 f"downloading video ... itag = {stream.itag} res = {stream.resolution} video_code = {stream.video_codec} abr = {stream.abr} audio_code = {stream.audio_codec}"
             )
             stream.download(output_path=video_download_folder, filename=full_filename)
-            print(
+            logger.info(
                 f"moving video file from = {full_filename} to = {remote_full_filename}"
             )
             shutil.move(full_filename, remote_full_filename)
         else:
-            print(
+            logger.warning(
                 f"remote file = [{remote_full_filename}] already exists, skip downloading video this time"
             )
 
@@ -213,25 +224,27 @@ def download_yt(url):
     if AUDIO:
         # download audio
         if not os.path.exists(remote_full_audioname):
-            print(f"converting audio = {full_audioname}")
+            logger.info(f"converting audio = {full_audioname}")
             audio = None
             if os.path.exists(remote_full_filename):
                 video = VideoFileClip(remote_full_filename)
                 audio = video.audio
             if not audio:
-                print(
+                logger.warning(
                     "no audio track found from origional video, downloading audio stream instead ..."
                 )
-                stream = (
-                    yt.streams.filter(
-                        mime_type=f"audio/{AUDIO_MIME}", abr=AUDIO_BITRATE
+                try:
+                    stream = (
+                        yt.streams.filter(
+                            mime_type=f"audio/{AUDIO_MIME}", abr=AUDIO_BITRATE
+                        )
+                        .asc()
+                        .first()
                     )
-                    .asc()
-                    .first()
-                )
-                if not stream:
+                except Exception as e:
+                    logger.debug(f"err = {e}")
                     stream = yt.streams.get_audio_only(subtype=AUDIO_MIME)
-                print(
+                logger.info(
                     f"downloading audio ... itag = {stream.itag} res = {stream.resolution} video_code = {stream.video_codec} abr = {stream.abr} audio_code = {stream.audio_codec}"
                 )
                 stream.download(
@@ -240,15 +253,21 @@ def download_yt(url):
                 audio = AudioFileClip(audio_download_fullname)
             audio.write_audiofile(filename=remote_full_audioname, codec=None)
             if AUDIO_KEEP_ORI and AUDIO_MIME != AUDIO_EXT:
+                logger.info(
+                    f"moving aideo file from = {audio_download_fullname} to = {os.path.join(DST_AUDIO, full_audioname_ori)}"
+                )
                 shutil.move(
                     audio_download_fullname, os.path.join(DST_AUDIO, full_audioname_ori)
                 )
             else:
+                logger.info(
+                    f"remove aideo file = {audio_download_fullname}"
+                )
                 os.remove(audio_download_fullname)
             # codec="pcm_s16le" for '.wav' ="libmp3lame" for '.mp3',
             # default to detect by file extension name
         else:
-            print(
+            logger.warning(
                 f"remote file = [{remote_full_audioname}] already exists, skip downloading audio this time"
             )
 
@@ -257,25 +276,25 @@ def download_yt(url):
         converted_full_filename = f"{filename}.{VIDEO_EXT}.{VIDEO_EXT}"
         coverted_remote_full_filename = os.path.join(DST, converted_full_filename)
         if os.path.exists(coverted_remote_full_filename):
-            print(
+            logger.warning(
                 f"remote file = [{coverted_remote_full_filename}] already exists, skip converting video this time"
             )
             return True
         try:
             # Load the video clip
             video_clip = VideoFileClip(remote_full_filename)
-            print(f"video length = {video_clip.duration}")
+            logger.debug(f"video length = {video_clip.duration}")
 
             # Load the audio clip
             audio_clip = AudioFileClip(remote_full_audioname)
-            print(f"audio length = {audio_clip.duration}")
+            logger.debug(f"audio length = {audio_clip.duration}")
 
             # Assign the audio to the video clip
             final_clip = video_clip
             final_clip.audio = audio_clip
 
             # Write the final video with the combined audio
-            print(
+            logger.info(
                 f"Write the final video with the combined audio, \
                     local = {converted_full_filename}, remote = {coverted_remote_full_filename}"
             )
@@ -291,16 +310,16 @@ def download_yt(url):
             #     new_audioclip = CompositeAudioClip([audioclip])
             #     videoclip.audio = new_audioclip
             #     videoclip.write_videofile(remote_full_filename)
-            print(
+            logger.info(
                 f"moving converted video from = {converted_full_filename} to = {coverted_remote_full_filename}"
             )
             shutil.move(converted_full_filename, coverted_remote_full_filename)
-            print(
+            logger.info(
                 f"Video and audio combined successfully and saved to {remote_full_filename}"
             )
 
         except Exception as e:
-            print(f"An error occurred: {e}")
+            logger.error(f"An error occurred: {e}")
 
         finally:
             # Close the clips to release resources
@@ -313,31 +332,31 @@ def download_yt(url):
 
 
 def download_videos(videos):
-    for video in videos:
+    for i, video in enumerate(videos):
         if isinstance(video, str):
             url = video
         elif isinstance(video, YouTube):
             url = video.watch_url
-        print(f"Downloading url = {url}")
+        logger.info(f"Downloading url = {url} [{i + 1}/{len(videos)}]")
         try:
             download_yt(url)
-        except BotDetection:
-            print(f"fail to download url = {url} due to detected as a bot")
-        except Exception:
-            print(f"fail to download url = {url}")
+        except BotDetection as e:
+            logger.error(f"fail to download url = {url} due to detected as a bot err = {e}")
+        except Exception as e:
+            logger.error(f"fail to download url = {url} err = {e}")
 
 
 def move_files():
-    print(os.getcwd())
+    logger.debug(os.getcwd())
     videos = glob.glob(r"*.{ext}".format(ext=VIDEO_EXT))
-    print(videos)
+    logger.debug(videos)
     for video in videos:
         os.rename(video, video[:MAX_FILE_LENGTH])
         video = video[:MAX_FILE_LENGTH]
         shutil.move(video, os.path.join(DST, video))
 
     audios = glob.glob(r"*.{ext}".format(ext=VIDEO_EXT))
-    print(audios)
+    logger.debug(audios)
     for audio in audios:
         os.rename(audio, audio[:MAX_FILE_LENGTH])
         audio = audio[:MAX_FILE_LENGTH]
@@ -345,31 +364,31 @@ def move_files():
 
 
 def main():
-    print("Individual Video ...")
+    logger.info("Individual Video ...")
     download_videos(vs)
 
     if PLS:
-        print("Playlist ...")
+        logger.info("Playlist ...")
         for pl in pls:
             try:
                 p = Playlist(pl)
-                print(f"Playlist ... {p.title}")
+                logger.info(f"Playlist ... {p.title}")
                 download_videos(p.videos)
             except Exception:
-                print(f"unable to handle Playlist = {pl}")
+                logger.error(f"unable to handle Playlist = {pl}")
 
     if CLS:
-        print("Channel ...")
+        logger.info("Channel ...")
         for cl in cls:
             try:
                 c = Channel(cl)
-                print(f"Channel name ... {c.channel_name}")
+                logger.info(f"Channel name ... {c.channel_name}")
                 download_videos(c.videos)
             except Exception:
-                print(f"unable to handle Channel = {cl}")
+                logger.error(f"unable to handle Channel = {cl}")
 
     if QLS:
-        print("Search ...")
+        logger.info("Search ...")
         filters = {
             "upload_date": Filter.get_upload_date(
                 "This Week"
@@ -384,18 +403,18 @@ def main():
                 q = Search(ql, filters=filters)
                 download_videos(q.videos)
             except Exception:
-                print(f"unable to handle Search = {ql}")
+                logger.error(f"unable to handle Search = {ql}")
 
 
 def _main():
     yt = YouTube(url, on_progress_callback=on_progress)
-    print(yt.title)
+    logger.info(yt.title)
     ys = yt.streams.get_highest_resolution(progressive=False, mime_type="video/mp4")
     ys.download(output_path="download/mtv/歌心りえ/")
 
-    print(yt.captions)
+    logger.info(yt.captions)
     for caption in yt.captions.keys():
-        # print(caption.generate_srt_captions())
+        # logger.info(caption.generate_srt_captions())
         caption.save_captions(f"download/mtv/歌心りえ/{yt.title}.txt")
 
     ya = yt.streams.get_audio_only()
@@ -408,19 +427,19 @@ def _main():
         ys.download(output_path="download/mtv")
 
     c = Channel("https://www.youtube.com/@ProgrammingKnowledge/featured")
-    print(f"Channel name: {c.channel_name}")
+    logger.info(f"Channel name: {c.channel_name}")
 
     c1 = Channel("https://www.youtube.com/@LillianChiu101")
-    print(f"Channel name: {c1.channel_name}")
+    logger.info(f"Channel name: {c1.channel_name}")
     # for video in c1.videos:
     #     video.streams.get_highest_resolution().download()
 
     res = Search("GitHub Issue Best Practices")
     for video in res.videos:
-        print(f"Title: {video.title}")
-        print(f"URL: {video.watch_url}")
-        print(f"Duration: {video.length} sec")
-        print("---")
+        logger.info(f"Title: {video.title}")
+        logger.info(f"URL: {video.watch_url}")
+        logger.info(f"Duration: {video.length} sec")
+        logger.info("---")
 
     filters = {
         "upload_date": Filter.get_upload_date("Today"),
@@ -435,10 +454,10 @@ def _main():
 
     res = Search("music", filters=filters)
     for video in res.videos:
-        print(f"Title: {video.title}")
-        print(f"URL: {video.watch_url}")
-        print(f"Duration: {video.length} sec")
-        print("---")
+        logger.info(f"Title: {video.title}")
+        logger.info(f"URL: {video.watch_url}")
+        logger.info(f"Duration: {video.length} sec")
+        logger.info("---")
 
 
 if __name__ == "__main__":
