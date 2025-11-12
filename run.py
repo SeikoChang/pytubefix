@@ -4,6 +4,7 @@ import os
 import shutil
 import time
 import logging
+from logging.handlers import TimedRotatingFileHandler
 from pytubefix import YouTube
 from pytubefix import Playlist
 from pytubefix import Channel
@@ -14,14 +15,25 @@ from pytubefix.contrib.search import Filter
 from pytubefix.cli import on_progress
 from moviepy import AudioFileClip, CompositeAudioClip, VideoFileClip
 
+LOG_FORMAT = "[%(asctime)s.%(msecs)03d] [%(levelname)s]: %(message)s"
+LOG_FORMAT_DATE = "%Y-%m-%d %H:%M:%S"
+LOG_LEVEL = "DEBUG"
+
 logging.basicConfig(
-    format="[%(asctime)s.%(msecs)03d] [%(levelname)s]: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    filename="pytub.log",
-    level=logging.DEBUG,
+    format=LOG_FORMAT,
+    datefmt=LOG_FORMAT_DATE,
+    level=logging.getLevelName(LOG_LEVEL),
 )
 logger: logging.Logger = logging.getLogger()
-handler = logging.StreamHandler()
+handler = TimedRotatingFileHandler(
+    filename="pytub.log",
+    when="midnight",  # Rotate at midnight every day
+    interval=1,  # Every 1 day
+    backupCount=7,  # Keep 7 backup log files (for a week)
+)
+handler.suffix = "_%Y%m%d.log"
+formatter = logging.Formatter(fmt=LOG_FORMAT, datefmt=LOG_FORMAT_DATE)
+handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 MAX_FILE_LENGTH = 63
