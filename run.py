@@ -39,8 +39,8 @@ logger.addHandler(handler)
 MAX_FILE_LENGTH = 63
 DRY_RUN = False
 DOWNLOAD_ALL = False
-DST = "./content/drive/MyDrive/Classical"
-DST_AUDIO = "./content/drive/MyDrive/Classical-Audio"
+DST = "./content/drive/MyDrive/SPY×FAMILY間諜家家酒"
+DST_AUDIO = "./content/drive/MyDrive/SPY×FAMILY間諜家家酒-Audio"
 
 CAPTION = True
 
@@ -53,14 +53,14 @@ PROGRESSIVE = False
 # ADAPTIVE = True
 ORDER_BY = "itag"
 
-AUDIO = True
+AUDIO = False
 AUDIO_EXT = "mp3"
 AUDIO_MIME = "mp4"
 AUDIO_BITRATE = "128kbps"
 AUDIO_CODE = "abr"
 AUDIO_KEEP_ORI = True
 
-RECONVERT = False
+RECONVERT = True
 CONVERT_VIDEO_CODE = (
     None  # "libx264" by fefault for .mp4, leave None for auto detection
 )
@@ -81,11 +81,18 @@ vs = [
     # "https://www.youtube.com/watch?v=6F-fAlGA0q0&list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
     # "https://www.youtube.com/watch?v=SQmVb9wcMP0",
     # "https://www.youtube.com/watch?v=HLhHMsh5a94",
-    "https://youtube.com/watch?v=cFoXcO8llNI",
-    "https://youtube.com/watch?v=YsKKuCUYUMU",
-    "https://youtube.com/watch?v=bvymTFYfRmk",
-    "https://youtube.com/watch?v=TZkg2SL-dkY",
-    "https://youtube.com/watch?v=00T_pojzqpw",
+    # "https://youtube.com/watch?v=cFoXcO8llNI",
+    # "https://youtube.com/watch?v=YsKKuCUYUMU",
+    # "https://youtube.com/watch?v=bvymTFYfRmk",
+    # "https://youtube.com/watch?v=TZkg2SL-dkY",
+    # "https://youtube.com/watch?v=00T_pojzqpw",
+    # "https://www.youtube.com/watch?v=AiIBKcd4m5Q",
+    # "https://www.youtube.com/watch?v=7CgbJGUxRJg",
+    # "https://www.youtube.com/watch?v=qQzdAsjWGPg",
+    # "https://youtu.be/w019MzRosmk?si=-e4I9b3XNUE-W4nA",
+    # "https://youtu.be/ixbcvKCl4Jc?si=InmzDQxhoSjjXuLA",
+    # "https://www.youtube.com/watch?v=-tJtsKngXJU",
+    # "https://www.youtube.com/watch?v=oKGkr1bd6-c",
 ]
 
 pls = [
@@ -98,6 +105,8 @@ pls = [
     # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9Kmoz_rwLVYe18TOrJ9T2P",  # My HiFi
     # "https://youtube.com/playlist?list=OLAK5uy_neh80RHNGYi1gPdfpaoGWpwhTzq-YLZP4",  # Le Roi Est Mort, Vive Le Roi!
     # "https://www.youtube.com/playlist?list=PLgQLKhyDqSaP0IPDJ7eXWvsGqOOH3_mqQ",  # 測試喇叭高HiFi音質音樂檔
+    # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9IUHdNR6Busq_uZmsmXbv8",  # Christmas
+    "https://www.youtube.com/playlist?list=PL12UaAf_xzfpfxj4siikK9CW8idyJyZo2",  # 【日語】SPY×FAMILY間諜家家酒(全部集數)
 ]
 
 cls = [
