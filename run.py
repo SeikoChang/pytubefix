@@ -17,7 +17,7 @@ from moviepy import AudioFileClip, CompositeAudioClip, VideoFileClip
 
 LOG_FORMAT = "[%(asctime)s.%(msecs)03d] [%(levelname)s]: %(message)s"
 LOG_FORMAT_DATE = "%Y-%m-%d %H:%M:%S"
-LOG_LEVEL = "DEBUG"
+LOG_LEVEL = "INFO"
 
 logging.basicConfig(
     format=LOG_FORMAT,
@@ -41,8 +41,8 @@ ENV = os.getenv("ENV", "DEV")
 MAX_FILE_LENGTH = 63
 DRY_RUN = False
 DOWNLOAD_ALL = False
-DST = "./drive/MyDrive/Music"
-DST_AUDIO = "./drive/MyDrive/Music-Audio"
+DST = "./drive/MyDrive/Learn-English"
+DST_AUDIO = "./drive/MyDrive/Learn-English-Audio"
 
 CAPTION = True
 
@@ -112,7 +112,7 @@ pls = [
     # "https://www.youtube.com/playlist?list=PLgQLKhyDqSaP0IPDJ7eXWvsGqOOH3_mqQ",  # 測試喇叭高HiFi音質音樂檔
     # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9IUHdNR6Busq_uZmsmXbv8",  # Christmas
     # "https://www.youtube.com/playlist?list=PL12UaAf_xzfpfxj4siikK9CW8idyJyZo2",  # 【日語】SPY×FAMILY間諜家家酒(全部集數)
-    "https://www.youtube.com/watch?v=7cQzvmJvLpU&list=PL1H2dev3GUtgYGOiJFWjZe2mX29VpraJN",  # 聽歌學英文
+    # "https://www.youtube.com/watch?v=7cQzvmJvLpU&list=PL1H2dev3GUtgYGOiJFWjZe2mX29VpraJN",  # 聽歌學英文
 ]
 
 cls = [
@@ -122,10 +122,11 @@ cls = [
 ]
 
 qls = [
-    # "Programming Knowledge",
-    # "GitHub Issue Best Practices",
-    "global news",
-    "breaking news" "台灣 新聞",
+    # ("Programming Knowledge", "View count", 1),
+    # ("GitHub Issue Best Practices", "View count", 1),
+    # ("global news", "Upload date", 5),
+    # ("breaking news, 台灣 新聞", "Upload date", 3),
+    ("learn english", "Relevance", 3),
 ]
 
 
@@ -416,19 +417,20 @@ def main():
 
     if QLS:
         logger.info("Search ...")
-        filters = {
-            "upload_date": Filter.get_upload_date(
-                "This Week"
-            ),  # Today, Last Hour, This Week
-            "type": Filter.get_type("Video"),
-            # "duration": Filter.get_duration("Under 4 minutes"),
-            # "features": [Filter.get_features("4K"), Filter.get_features("Creative Commons")],
-            "sort_by": Filter.get_sort_by("Upload date"),
-        }
-        for ql in qls:
+
+        for ql, filter, top in qls:
+            filters = {
+                # "upload_date": Filter.get_upload_date(
+                #     "This Week"
+                # ),  # Today, Last Hour, This Week
+                "type": Filter.get_type("Video"),
+                # "duration": Filter.get_duration("Under 4 minutes"),
+                # "features": [Filter.get_features("4K"), Filter.get_features("Creative Commons")],
+                "sort_by": Filter.get_sort_by(filter),
+            }
             try:
                 q = Search(ql, filters=filters)
-                download_videos(q.videos)
+                download_videos(q.videos[:top])  # only download the first video
             except Exception:
                 logger.error(f"unable to handle Search = {ql}")
 
