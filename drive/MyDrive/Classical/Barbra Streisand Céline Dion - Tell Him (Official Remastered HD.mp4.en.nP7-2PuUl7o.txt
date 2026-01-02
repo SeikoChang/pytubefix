@@ -1,0 +1,243 @@
+1
+00:00:01,234 --> 00:00:03,536
+We could try it both ways and see which feels better
+
+2
+00:00:03,536 --> 00:00:05,171
+Ok so where do I go first, I take this line?
+
+3
+00:00:05,171 --> 00:00:06,840
+Yes, do your line here. Ok....
+
+4
+00:00:08,375 --> 00:00:11,478
+♪ I'm scared ♪
+
+5
+00:00:12,846 --> 00:00:17,350
+♪ So afraid to show I care ♪
+
+6
+00:00:19,319 --> 00:00:22,856
+♪ Will he think me weak ♪
+
+7
+00:00:25,558 --> 00:00:31,664
+♪ If I tremble when I speak? ♪
+
+8
+00:00:32,399 --> 00:00:37,137
+♪ Ooh, what if ♪
+
+9
+00:00:38,838 --> 00:00:43,877
+♪ There's another one he's thinking of? ♪
+
+10
+00:00:45,745 --> 00:00:48,381
+♪ Maybe he's in love ♪
+
+11
+00:00:48,648 --> 00:00:51,251
+♪ I'd feel like a fool ♪
+
+12
+00:00:51,851 --> 00:00:54,854
+♪ Life can be so cruel ♪
+
+13
+00:00:55,055 --> 00:01:01,694
+♪ I don't know what to do ♪
+
+14
+00:01:03,430 --> 00:01:06,032
+♪ I've been there ♪
+
+15
+00:01:08,034 --> 00:01:13,473
+♪ With my heart out in my hand ♪
+
+16
+00:01:14,407 --> 00:01:18,011
+♪ But what you must understand ♪
+
+17
+00:01:18,111 --> 00:01:20,547
+♪ You can't let the chance ♪
+
+18
+00:01:20,713 --> 00:01:28,621
+♪ To love him pass you by ♪
+
+19
+00:01:29,122 --> 00:01:32,425
+♪ Tell him ♪
+
+20
+00:01:32,425 --> 00:01:35,261
+♪ Tell him that the sun and moon ♪
+
+21
+00:01:35,395 --> 00:01:38,131
+♪ Rise in his eyes ♪
+
+22
+00:01:38,598 --> 00:01:41,601
+♪ Reach out to him ♪
+
+23
+00:01:42,135 --> 00:01:44,737
+♪ And whisper ♪
+
+24
+00:01:45,138 --> 00:01:47,941
+♪ Tender words so soft and sweet ♪
+
+25
+00:01:48,241 --> 00:01:52,278
+♪ I'll hold him close to feel his heart beat ♪
+
+26
+00:01:52,579 --> 00:01:59,886
+♪ Love will be the gift you give yourself ♪
+
+27
+00:02:01,254 --> 00:02:05,158
+♪ Touch him (ooh) ♪
+
+28
+00:02:05,792 --> 00:02:11,898
+♪ With the gentleness you feel inside (I feel it) ♪
+
+29
+00:02:12,098 --> 00:02:15,235
+♪ Your love can't be denied ♪
+
+30
+00:02:15,502 --> 00:02:18,471
+♪ The truth will set you free ♪
+
+31
+00:02:18,638 --> 00:02:21,474
+♪ You'll have what's meant to be ♪
+
+32
+00:02:22,108 --> 00:02:29,015
+♪ All in time you'll see ♪
+
+33
+00:02:29,549 --> 00:02:34,521
+♪ Ooh, I love him (then show him) ♪
+
+34
+00:02:34,621 --> 00:02:40,760
+♪ Of that much I can be sure (hold him close to you) ♪
+
+35
+00:02:40,994 --> 00:02:44,197
+♪ I don't think I could endure ♪
+
+36
+00:02:44,297 --> 00:02:47,000
+♪ If I let him walk away ♪
+
+37
+00:02:47,333 --> 00:02:55,341
+♪ When I have so much to say ♪
+
+38
+00:02:55,808 --> 00:02:58,311
+♪ Tell him ♪
+
+39
+00:02:58,878 --> 00:03:01,781
+♪ Tell him that the sun and moon ♪
+
+40
+00:03:01,881 --> 00:03:04,751
+♪ Rise in his eyes ♪
+
+41
+00:03:05,185 --> 00:03:07,987
+♪ Reach out to him ♪
+
+42
+00:03:08,254 --> 00:03:11,357
+♪ And whisper ♪
+
+43
+00:03:11,591 --> 00:03:14,861
+♪ Tender words so soft and sweet ♪
+
+44
+00:03:15,061 --> 00:03:18,998
+♪ Hold him close to feel his heart beat ♪
+
+45
+00:03:19,098 --> 00:03:25,338
+♪ Love will be the gift you give yourself ♪
+
+46
+00:03:25,905 --> 00:03:28,775
+♪ Love is light that surely glows ♪
+
+47
+00:03:29,008 --> 00:03:32,045
+♪ In the hearts of those who know ♪
+
+48
+00:03:32,278 --> 00:03:37,917
+♪ It's a steady flame that grows ♪
+
+49
+00:03:38,084 --> 00:03:43,523
+♪ Feed the fire with all the passion you can show ♪
+
+50
+00:03:43,690 --> 00:03:46,626
+♪ Tonight love will assume its place ♪
+
+51
+00:03:46,759 --> 00:03:49,929
+♪ This memory time cannot erase ♪
+
+52
+00:03:50,196 --> 00:03:57,804
+♪ Your faith will lead love where it has to go ♪
+
+53
+00:03:57,937 --> 00:03:59,839
+♪ Tell him ♪
+
+54
+00:04:00,373 --> 00:04:03,076
+♪ Tell him that the sun and moon ♪
+
+55
+00:04:03,176 --> 00:04:06,112
+♪ Rise in his eyes ♪
+
+56
+00:04:06,479 --> 00:04:09,649
+♪ Reach out to him ♪
+
+57
+00:04:09,949 --> 00:04:12,719
+♪ And whisper ♪
+
+58
+00:04:13,186 --> 00:04:16,122
+♪ Whisper words so soft and sweet ♪
+
+59
+00:04:16,723 --> 00:04:19,792
+♪ Hold him close to feel his heart beat ♪
+
+60
+00:04:20,059 --> 00:04:34,907
+♪ Love will be the gift you give yourself, ooh ♪
+
+61
+00:04:35,241 --> 00:04:46,386
+♪ Never let him go ♪

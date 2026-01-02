@@ -1,0 +1,151 @@
+1
+00:00:00,500 --> 00:00:03,266
+<font color="#FFFFFF"><i>♪♪♪</i></font>
+
+2
+00:00:08,200 --> 00:00:12,500
+<font color="#FFFFFF"><i>♪ How does a moment last forever? ♪</i></font>
+
+3
+00:00:12,533 --> 00:00:16,400
+<font color="#FFFFFF"><i>♪ How can a story never die? ♪</i></font>
+
+4
+00:00:16,433 --> 00:00:20,600
+<font color="#FFFFFF"><i>♪ It is love we must hold on to ♪</i></font>
+
+5
+00:00:20,633 --> 00:00:25,533
+<font color="#FFFFFF"><i>♪ Never easy but we try ♪</i></font>
+
+6
+00:00:25,566 --> 00:00:30,033
+<font color="#FFFFFF"><i>♪ Sometimes our happiness is captured ♪</i></font>
+
+7
+00:00:30,066 --> 00:00:34,300
+<font color="#FFFFFF"><i>♪ Somehow a time and place stand still ♪</i></font>
+
+8
+00:00:34,333 --> 00:00:38,433
+<font color="#FFFFFF"><i>♪ Love lives on inside our hearts ♪</i></font>
+
+9
+00:00:38,466 --> 00:00:43,200
+<font color="#FFFFFF"><i>♪ And always will ♪</i></font>
+
+10
+00:00:43,233 --> 00:00:47,533
+<font color="#FFFFFF"><i>♪ Minutes turn to hours ♪</i></font>
+
+11
+00:00:47,566 --> 00:00:52,333
+<font color="#FFFFFF"><i>♪ Days to years then gone ♪</i></font>
+
+12
+00:00:52,366 --> 00:00:57,133
+<font color="#FFFFFF"><i>♪ But when all else has been forgotten ♪</i></font>
+
+13
+00:00:57,166 --> 00:01:02,366
+<font color="#FFFFFF"><i>♪ Still our song lives on ♪</i></font>
+
+14
+00:01:04,300 --> 00:01:08,433
+<font color="#FFFFFF"><i>♪ Maybe some moments weren't so perfect ♪</i></font>
+
+15
+00:01:08,466 --> 00:01:12,433
+<font color="#FFFFFF"><i>♪ Maybe some memories not so sweet ♪</i></font>
+
+16
+00:01:12,466 --> 00:01:16,500
+<font color="#FFFFFF"><i>♪ But we have to know some bad times ♪</i></font>
+
+17
+00:01:16,533 --> 00:01:21,366
+<font color="#FFFFFF"><i>♪ Or our lives are incomplete ♪</i></font>
+
+18
+00:01:21,400 --> 00:01:25,633
+<font color="#FFFFFF"><i>♪ Then when the shadows overtake us ♪</i></font>
+
+19
+00:01:25,666 --> 00:01:29,633
+<font color="#FFFFFF"><i>♪ Just when we feel all hope is gone ♪</i></font>
+
+20
+00:01:29,666 --> 00:01:34,133
+<font color="#FFFFFF"><i>♪ We'll hear our song and know once more ♪</i></font>
+
+21
+00:01:34,166 --> 00:01:37,666
+<font color="#FFFFFF"><i>♪ Our love lives on ♪</i></font>
+
+22
+00:01:45,433 --> 00:01:49,566
+<font color="#FFFFFF"><i>♪♪♪ [vocalizing]</i></font>
+
+23
+00:02:00,533 --> 00:02:04,566
+<font color="#FFFFFF"><i>♪ How does a moment last forever? ♪</i></font>
+
+24
+00:02:04,600 --> 00:02:08,466
+<font color="#FFFFFF"><i>♪ How does our happiness endure? ♪</i></font>
+
+25
+00:02:08,500 --> 00:02:12,400
+<font color="#FFFFFF"><i>♪ Through the darkest of our troubles ♪</i></font>
+
+26
+00:02:12,433 --> 00:02:17,233
+<font color="#FFFFFF"><i>♪ Love is beauty, love is pure ♪</i></font>
+
+27
+00:02:17,266 --> 00:02:21,300
+<font color="#FFFFFF"><i>♪ Love pays no mind to desolation ♪</i></font>
+
+28
+00:02:21,333 --> 00:02:25,333
+<font color="#FFFFFF"><i>♪ It flows like a river through the soul ♪</i></font>
+
+29
+00:02:25,366 --> 00:02:29,400
+<font color="#FFFFFF"><i>♪ Protects, proceeds and perseveres ♪</i></font>
+
+30
+00:02:29,433 --> 00:02:33,633
+<font color="#FFFFFF"><i>♪ And makes us whole ♪</i></font>
+
+31
+00:02:33,666 --> 00:02:38,366
+<font color="#FFFFFF"><i>♪ Minutes turn to hours ♪</i></font>
+
+32
+00:02:38,400 --> 00:02:44,266
+<font color="#FFFFFF"><i>♪ Days to years then gone ♪</i></font>
+
+33
+00:02:44,300 --> 00:02:49,300
+<font color="#FFFFFF"><i>♪ But when all else has been forgotten ♪</i></font>
+
+34
+00:02:49,333 --> 00:02:56,200
+<font color="#FFFFFF"><i>♪ Still our song lives on ♪</i></font>
+
+35
+00:02:57,633 --> 00:03:02,733
+<font color="#FFFFFF"><i>♪ How does a moment last forever? ♪</i></font>
+
+36
+00:03:02,766 --> 00:03:05,633
+<font color="#FFFFFF"><i>♪ When our song ♪</i></font>
+
+37
+00:03:05,666 --> 00:03:14,533
+<font color="#FFFFFF"><i>♪ Lives on ♪</i></font>
+
+38
+00:03:14,566 --> 00:03:32,566
+<font color="#FFFFFF"><i>♪♪♪</i></font>
