@@ -15,6 +15,11 @@ from pytubefix.contrib.search import Filter
 from pytubefix.cli import on_progress
 from moviepy import AudioFileClip, CompositeAudioClip, VideoFileClip
 
+RELEVANCE = Filter.SortBy.RELEVANCE
+UPLOAD_DATE = Filter.SortBy.UPLOAD_DATE
+VIEW_COUNT = Filter.SortBy.VIEW_COUNT
+RATING = Filter.SortBy.RATING
+
 LOG_FORMAT = "[%(asctime)s.%(msecs)03d] [%(levelname)s]: %(message)s"
 LOG_FORMAT_DATE = "%Y-%m-%d %H:%M:%S"
 LOG_LEVEL = "INFO"
@@ -41,8 +46,8 @@ ENV = os.getenv("ENV", "DEV")
 MAX_FILE_LENGTH = 63
 DRY_RUN = False
 DOWNLOAD_ALL = False
-DST = "./drive/MyDrive/Learn-English"
-DST_AUDIO = "./drive/MyDrive/Learn-English-Audio"
+DST = "./drive/MyDrive/Test"
+DST_AUDIO = "./drive/MyDrive/Test-Audio"
 
 CAPTION = True
 
@@ -122,11 +127,16 @@ cls = [
 ]
 
 qls = [
-    # ("Programming Knowledge", "View count", 1),
-    # ("GitHub Issue Best Practices", "View count", 1),
-    # ("global news", "Upload date", 5),
-    # ("breaking news, 台灣 新聞", "Upload date", 3),
-    ("learn english", "Relevance", 3),
+    # ("Programming Knowledge", VIEW_COUNT, 1),
+    # ("GitHub Issue Best Practices", VIEW_COUNT, 1),
+    # ("global news", UPLOAD_DATE, 5),
+    # ("breaking news, 台灣 新聞", UPLOAD_DATE, 3),
+    # ("learn english", RELEVANCE, 3),
+    (
+        "Tee TA Cote Jay Park) SURL  CY NRE 18  (C1) seaRseREa at  mbit  cram  ars Snow eae? SS . ey Me ",
+        RELEVANCE,
+        2,
+    ),  # test garbled characters
 ]
 
 
@@ -418,21 +428,34 @@ def main():
     if QLS:
         logger.info("Search ...")
 
-        for ql, filter, top in qls:
-            filters = {
-                # "upload_date": Filter.get_upload_date(
-                #     "This Week"
-                # ),  # Today, Last Hour, This Week
-                "type": Filter.get_type("Video"),
-                # "duration": Filter.get_duration("Under 4 minutes"),
-                # "features": [Filter.get_features("4K"), Filter.get_features("Creative Commons")],
-                "sort_by": Filter.get_sort_by(filter),
-            }
+        for qs, filter, top in qls:
+            # filters = {
+            #     # "upload_date": Filter.get_upload_date(
+            #     #     "This Week"
+            #     # ),  # Today, Last Hour, This Week
+            #     "type": Filter.get_type("Video"),
+            #     # "duration": Filter.get_duration("Under 4 minutes"),
+            #     # "features": [Filter.get_features("4K"), Filter.get_features("Creative Commons")],
+            #     "sort_by": Filter.get_sort_by(filter),
+            # }
+            filters = (
+                Filter.create()
+                # .upload_date(Filter.UploadDate.TODAY)
+                .type(Filter.Type.VIDEO)
+                # .duration(Filter.Duration.UNDER_4_MINUTES)
+                # .feature([Filter.Features.CREATIVE_COMMONS, Filter.Features._4K])
+                .sort_by(Filter.SortBy(filter))
+            )
             try:
-                q = Search(ql, filters=filters)
-                download_videos(q.videos[:top])  # only download the first video
+                res = Search(qs, filters=filters)
+                for video in res.videos[:top]:  # only download the top N videos from the search
+                    logger.info(f"Title: {video.title}")
+                    logger.info(f"URL: {video.watch_url}")
+                    logger.info(f"Duration: {video.length} sec")
+                    logger.info("---")
+                    download_videos([video])
             except Exception:
-                logger.error(f"unable to handle Search = {ql}")
+                logger.error(f"unable to handle Search = {qs}")
 
 
 def _main():
