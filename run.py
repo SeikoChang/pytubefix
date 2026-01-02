@@ -36,11 +36,13 @@ formatter = logging.Formatter(fmt=LOG_FORMAT, datefmt=LOG_FORMAT_DATE)
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+ENV = os.getenv("ENV", "DEV")
+
 MAX_FILE_LENGTH = 63
 DRY_RUN = False
 DOWNLOAD_ALL = False
-DST = "./content/drive/MyDrive/SPY×FAMILY間諜家家酒"
-DST_AUDIO = "./content/drive/MyDrive/SPY×FAMILY間諜家家酒-Audio"
+DST = "./drive/MyDrive/Music"
+DST_AUDIO = "./drive/MyDrive/Music-Audio"
 
 CAPTION = True
 
@@ -53,12 +55,12 @@ PROGRESSIVE = False
 # ADAPTIVE = True
 ORDER_BY = "itag"
 
-AUDIO = False
+AUDIO = True
 AUDIO_EXT = "mp3"
 AUDIO_MIME = "mp4"
 AUDIO_BITRATE = "128kbps"
 AUDIO_CODE = "abr"
-AUDIO_KEEP_ORI = True
+AUDIO_KEEP_ORI = False
 
 RECONVERT = True
 CONVERT_VIDEO_CODE = (
@@ -93,6 +95,9 @@ vs = [
     # "https://youtu.be/ixbcvKCl4Jc?si=InmzDQxhoSjjXuLA",
     # "https://www.youtube.com/watch?v=-tJtsKngXJU",
     # "https://www.youtube.com/watch?v=oKGkr1bd6-c",
+    # "https://www.youtube.com/watch?v=I5PI1i2npGQ&list=RDI5PI1i2npGQ&start_radio=1",
+    # "https://www.youtube.com/watch?v=fcVHGZVCkDI&list=RDI5PI1i2npGQ&index=2",
+    # "https://youtu.be/KCy_5nhiXs0?si=jibLq1eGh6si4fD-",
 ]
 
 pls = [
@@ -106,7 +111,8 @@ pls = [
     # "https://youtube.com/playlist?list=OLAK5uy_neh80RHNGYi1gPdfpaoGWpwhTzq-YLZP4",  # Le Roi Est Mort, Vive Le Roi!
     # "https://www.youtube.com/playlist?list=PLgQLKhyDqSaP0IPDJ7eXWvsGqOOH3_mqQ",  # 測試喇叭高HiFi音質音樂檔
     # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9IUHdNR6Busq_uZmsmXbv8",  # Christmas
-    "https://www.youtube.com/playlist?list=PL12UaAf_xzfpfxj4siikK9CW8idyJyZo2",  # 【日語】SPY×FAMILY間諜家家酒(全部集數)
+    # "https://www.youtube.com/playlist?list=PL12UaAf_xzfpfxj4siikK9CW8idyJyZo2",  # 【日語】SPY×FAMILY間諜家家酒(全部集數)
+    "https://www.youtube.com/watch?v=7cQzvmJvLpU&list=PL1H2dev3GUtgYGOiJFWjZe2mX29VpraJN",  # 聽歌學英文
 ]
 
 cls = [
