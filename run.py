@@ -46,12 +46,12 @@ ENV = os.getenv("ENV", "DEV")
 MAX_FILE_LENGTH = 63
 DRY_RUN = False
 DOWNLOAD_ALL = False
-DST = "./drive/MyDrive/Test"
-DST_AUDIO = "./drive/MyDrive/Test-Audio"
+DST = "./drive/MyDrive/QWER"
+DST_AUDIO = "./drive/MyDrive/QWER-Audio"
 
 CAPTION = True
 
-VIDEO = True
+VIDEO = False
 VIDEO_EXT = "mp4"
 VIDEO_MIME = "mp4"
 VIDEO_RES = "1080p"
@@ -77,7 +77,7 @@ CONVERT_AUDIO_CODE = (
 
 PLS = True
 CLS = False
-QLS = True
+QLS = False
 
 os.makedirs(DST, exist_ok=True)
 os.makedirs(DST_AUDIO, exist_ok=True)
@@ -104,7 +104,7 @@ vs = [
     # "https://www.youtube.com/watch?v=fcVHGZVCkDI&list=RDI5PI1i2npGQ&index=2",
     # "https://youtu.be/KCy_5nhiXs0?si=jibLq1eGh6si4fD-",
     # "https://youtube.com/watch?v=7g9xcCMdwns",
-    "https://www.youtube.com/watch?v=YAnjSN9hhyM&list=RDYAnjSN9hhyM&start_radio=1",
+    # "https://www.youtube.com/watch?v=YAnjSN9hhyM&list=RDYAnjSN9hhyM&start_radio=1",  # JOLIN 蔡依林 PLEASURE世界巡迴演唱會 TAIPEI 20260101 Full version
 ]
 
 pls = [
@@ -120,9 +120,10 @@ pls = [
     # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9IUHdNR6Busq_uZmsmXbv8",  # Christmas
     # "https://www.youtube.com/playlist?list=PL12UaAf_xzfpfxj4siikK9CW8idyJyZo2",  # 【日語】SPY×FAMILY間諜家家酒(全部集數)
     # "https://www.youtube.com/watch?v=7cQzvmJvLpU&list=PL1H2dev3GUtgYGOiJFWjZe2mX29VpraJN",  # 聽歌學英文
+    "https://www.youtube.com/playlist?list=PLwPx6OD5gb4imniZyKp7xo7pXew3QRTuq",  # QWER 1ST WORLDTOUR Setlist (Rockation, 2025)
 ]
 
-cls = [
+cls : list = [
     # "https://www.youtube.com/@ProgrammingKnowledge/featured",
     # "https://www.youtube.com/@LillianChiu101",
     # "https://www.youtube.com/@kellytsaii",
