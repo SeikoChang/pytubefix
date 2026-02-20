@@ -1,3 +1,4 @@
+import sys
 from functools import wraps
 import glob
 import os
@@ -22,12 +23,16 @@ RATING = Filter.SortBy.RATING
 
 LOG_FORMAT = "[%(asctime)s.%(msecs)03d] [%(levelname)s]: %(message)s"
 LOG_FORMAT_DATE = "%Y-%m-%d %H:%M:%S"
-LOG_LEVEL = "INFO"
+LOG_LEVEL = logging.INFO
 
+# Configure logging to display INFO level and above, and use the custom format
+# 'stream=sys.stdout' ensures output goes to the standard Colab output cell
 logging.basicConfig(
     format=LOG_FORMAT,
     datefmt=LOG_FORMAT_DATE,
+    stream=sys.stdout,
     level=logging.getLevelName(LOG_LEVEL),
+    force=True,  # This argument forces Colab to use this config, overriding defaults
 )
 logger: logging.Logger = logging.getLogger()
 handler = TimedRotatingFileHandler(
