@@ -51,12 +51,13 @@ ENV = os.getenv("ENV", "DEV")
 MAX_FILE_LENGTH = 63
 DRY_RUN = False
 DOWNLOAD_ALL = False
-DST = "./drive/MyDrive/日本演歌"
-DST_AUDIO = "./drive/MyDrive/日本演歌-Audio"
+PATH = "./drive/MyDrive/"
+DST = os.path.join(f"{PATH}", "日本演歌")
+DST_AUDIO = os.path.join(f"{PATH}", "日本演歌-Audio")
 
 CAPTION = True
 
-VIDEO = True
+VIDEO = False
 VIDEO_EXT = "mp4"
 VIDEO_MIME = "mp4"
 VIDEO_RES = "1080p"
@@ -73,7 +74,7 @@ AUDIO_BITRATE = "128kbps"
 AUDIO_CODE = "abr"
 AUDIO_KEEP_ORI = False
 
-RECONVERT = True
+RECONVERT = False
 CONVERT_VIDEO_CODE = (
     None  # "libx264" by fefault for .mp4, leave None for auto detection
 )
@@ -126,7 +127,7 @@ pls = [
     # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9IUHdNR6Busq_uZmsmXbv8",  # Christmas
     # "https://www.youtube.com/playlist?list=PL12UaAf_xzfpfxj4siikK9CW8idyJyZo2",  # 【日語】SPY×FAMILY間諜家家酒(全部集數)
     # "https://www.youtube.com/watch?v=7cQzvmJvLpU&list=PL1H2dev3GUtgYGOiJFWjZe2mX29VpraJN",  # 聽歌學英文
-    # "https://www.youtube.com/playlist?list=PLwPx6OD5gb4imniZyKp7xo7pXew3QRTuq",  # QWER 1ST WORLDTOUR Setlist (Rockation, 2025)
+    "https://www.youtube.com/playlist?list=PLwPx6OD5gb4imniZyKp7xo7pXew3QRTuq",  # QWER 1ST WORLDTOUR Setlist (Rockation, 2025)
     "https://youtube.com/playlist?list=PLhkqiApN_VYay4opZamqmnHIeKQtR9l-T&si=KYV2DqljMbF0W4mQ",  # 日本演歌
 ]
 
@@ -433,9 +434,16 @@ def main():
     if PLS:
         logger.info("Playlist ...")
         for pl in pls:
+            global DST
+            global DST_AUDIO
             try:
                 p = Playlist(pl)
                 logger.info(f"Playlist ... {p.title}")
+                DST = os.path.join(f"{PATH}", p.title)
+                DST_AUDIO = os.path.join(f"{PATH}", f"{p.title}-Audio")
+                os.makedirs(DST, exist_ok=True)
+                os.makedirs(DST_AUDIO, exist_ok=True)
+                logger.info(f"{DST=} {DST_AUDIO=}")
                 download_videos(p.videos)
             except Exception:
                 logger.error(f"unable to handle Playlist = {pl}")
