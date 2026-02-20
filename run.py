@@ -61,6 +61,7 @@ VIDEO_EXT = "mp4"
 VIDEO_MIME = "mp4"
 VIDEO_RES = "1080p"
 VIDEO_CODE = "av1"
+VIDEO_KEEP_ORI = False
 PROGRESSIVE = False
 # ADAPTIVE = True
 ORDER_BY = "itag"
@@ -318,8 +319,12 @@ def download_yt(url):
 
     # merge video/audio if needed
     if RECONVERT:
-        converted_full_filename = f"{filename}.{VIDEO_EXT}.{VIDEO_EXT}"
-        coverted_remote_full_filename = os.path.join(DST, converted_full_filename)
+        converted_full_filename = f"{full_filename}.{VIDEO_EXT}"
+        if VIDEO_KEEP_ORI:
+            coverted_remote_full_filename = os.path.join(DST, converted_full_filename)
+        else:
+            coverted_remote_full_filename = os.path.join(DST, full_filename)
+
         if os.path.exists(coverted_remote_full_filename):
             logger.warning(
                 f"remote file = [{coverted_remote_full_filename}] already exists, skip converting video this time"
@@ -402,12 +407,23 @@ def move_files():
         video = video[:MAX_FILE_LENGTH]
         shutil.move(video, os.path.join(DST, video))
 
-    audios = glob.glob(r"*.{ext}".format(ext=VIDEO_EXT))
+    audios = glob.glob(r"*.{ext}".format(ext=AUDIO_EXT))
     logger.debug(audios)
     for audio in audios:
         os.rename(audio, audio[:MAX_FILE_LENGTH])
         audio = audio[:MAX_FILE_LENGTH]
         shutil.move(audio, os.path.join(DST_AUDIO, audio))
+
+
+def remove_origional_video():
+    logger.debug(os.getcwd())
+    videos = glob.glob(os.path.join(DST, r"*.{ext}.{ext}".format(ext=VIDEO_EXT)))
+    logger.debug(videos)
+    for video in videos:
+        source = video
+        destination = video[:-4]
+        logger.info(msg=f"moving... {source=} to {destination=}")
+        shutil.move(source, destination)
 
 
 def main():
@@ -530,3 +546,4 @@ def _main():
 if __name__ == "__main__":
     main()
     move_files()
+    # remove_origional_video()
