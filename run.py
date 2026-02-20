@@ -51,12 +51,12 @@ ENV = os.getenv("ENV", "DEV")
 MAX_FILE_LENGTH = 63
 DRY_RUN = False
 DOWNLOAD_ALL = False
-DST = "./drive/MyDrive/QWER"
-DST_AUDIO = "./drive/MyDrive/QWER-Audio"
+DST = "./drive/MyDrive/日本演歌"
+DST_AUDIO = "./drive/MyDrive/日本演歌-Audio"
 
 CAPTION = True
 
-VIDEO = False
+VIDEO = True
 VIDEO_EXT = "mp4"
 VIDEO_MIME = "mp4"
 VIDEO_RES = "1080p"
@@ -87,7 +87,7 @@ QLS = False
 os.makedirs(DST, exist_ok=True)
 os.makedirs(DST_AUDIO, exist_ok=True)
 
-vs = [
+vs: list[str] = [
     # "https://www.youtube.com/watch?v=zb3nAoJJGYo",
     # "https://www.youtube.com/watch?v=BmtYHnvQcqw",
     # "https://www.youtube.com/watch?v=6F-fAlGA0q0&list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
@@ -125,10 +125,11 @@ pls = [
     # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9IUHdNR6Busq_uZmsmXbv8",  # Christmas
     # "https://www.youtube.com/playlist?list=PL12UaAf_xzfpfxj4siikK9CW8idyJyZo2",  # 【日語】SPY×FAMILY間諜家家酒(全部集數)
     # "https://www.youtube.com/watch?v=7cQzvmJvLpU&list=PL1H2dev3GUtgYGOiJFWjZe2mX29VpraJN",  # 聽歌學英文
-    "https://www.youtube.com/playlist?list=PLwPx6OD5gb4imniZyKp7xo7pXew3QRTuq",  # QWER 1ST WORLDTOUR Setlist (Rockation, 2025)
+    # "https://www.youtube.com/playlist?list=PLwPx6OD5gb4imniZyKp7xo7pXew3QRTuq",  # QWER 1ST WORLDTOUR Setlist (Rockation, 2025)
+    "https://youtube.com/playlist?list=PLhkqiApN_VYay4opZamqmnHIeKQtR9l-T&si=KYV2DqljMbF0W4mQ",  # 日本演歌
 ]
 
-cls : list = [
+cls: list = [
     # "https://www.youtube.com/@ProgrammingKnowledge/featured",
     # "https://www.youtube.com/@LillianChiu101",
     # "https://www.youtube.com/@kellytsaii",
@@ -456,7 +457,9 @@ def main():
             )
             try:
                 res = Search(qs, filters=filters)
-                for video in res.videos[:top]:  # only download the top N videos from the search
+                for video in res.videos[
+                    :top
+                ]:  # only download the top N videos from the search
                     logger.info(f"Title: {video.title}")
                     logger.info(f"URL: {video.watch_url}")
                     logger.info(f"Duration: {video.length} sec")
@@ -467,6 +470,10 @@ def main():
 
 
 def _main():
+    plst = [
+        "https://youtube.com/playlist?list=PLhkqiApN_VYay4opZamqmnHIeKQtR9l-T&si=KYV2DqljMbF0W4mQ",  # 日本演歌
+    ]
+    url = "https://youtube.com/watch?v=7g9xcCMdwns"
     yt = YouTube(url, on_progress_callback=on_progress)
     logger.info(yt.title)
     ys = yt.streams.get_highest_resolution(progressive=False, mime_type="video/mp4")
