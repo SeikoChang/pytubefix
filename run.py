@@ -6,6 +6,7 @@ import shutil
 import time
 import logging
 from logging.handlers import TimedRotatingFileHandler
+import unicodedata
 from pytubefix import YouTube
 from pytubefix import Playlist
 from pytubefix import Channel
@@ -21,7 +22,7 @@ UPLOAD_DATE = Filter.SortBy.UPLOAD_DATE
 VIEW_COUNT = Filter.SortBy.VIEW_COUNT
 RATING = Filter.SortBy.RATING
 
-LOG_FORMAT = "[%(asctime)s.%(msecs)03d] [%(levelname)s]: %(message)s"
+LOG_FORMAT = "%(asctime)s | %(levelname)s : %(message)s"
 LOG_FORMAT_DATE = "%Y-%m-%d %H:%M:%S"
 LOG_LEVEL = logging.INFO
 
@@ -184,7 +185,7 @@ def remove_characters(filename):
             _filename += c
     return _filename
 
-    # filename = filename.replace('\"' , " ")
+    # filename = filename.replace('"' , " ")
     # filename = filename.replace('|', " ")
     # filename = filename.replace(',', " ")
     # filename = filename.replace('/"' , " ")
@@ -194,6 +195,18 @@ def remove_characters(filename):
     # filename = filename.replace('?', " ")
     # filename = filename.replace('<', " ")
     # filename = filename.replace('>"' , " ")
+
+
+# Define a helper function for consistent string normalization
+def get_comparable_name(original_string):
+    if not isinstance(original_string, str):
+        return original_string
+    # 1. Unicode Normalization (NFKC for compatibility, e.g., 'ジ' to 'ジ')
+    normalized_s = unicodedata.normalize('NFKC', original_string)
+    # 2. Replace ideographic space (U+3000) with standard space (U+0020)
+    normalized_s = normalized_s.replace('\u3000', ' ')
+    # 3. Apply helpers.safe_filename to sanitize for filename compatibility and length
+    return helpers.safe_filename(s=normalized_s, max_length=MAX_FILE_LENGTH)
 
 
 # @retry_function(retries=3, delay=30)
@@ -453,21 +466,56 @@ def compare_audio_video():
             print(video)
 
 
-def compare_video_playlist():
+def compare_playlist():
     for pl in pls:
         p = Playlist(pl)
         logger.info(f"Playlist ... {p.title}")
         DST = os.path.join(f"{PATH}", p.title)
         videos = glob.glob(os.path.join(DST, r"*.{ext}".format(ext=VIDEO_EXT)))
-        videos = sorted([os.path.splitext(os.path.basename(video))[0] for video in videos])
+        videos = sorted(
+            [os.path.splitext(os.path.basename(video))[0] for video in videos]
+        )
+        logger.debug(f"{videos=}")
 
+        audios = glob.glob(os.path.join(DST_AUDIO, r"*.{ext}".format(ext=AUDIO_EXT)))
+        audios = sorted(
+            [os.path.splitext(os.path.basename(audio))[0] for audio in audios]
+        )
+        logger.debug(f"{audios=}")
+
+        logger.info(f"videos = {len(videos)} audios = {len(audios)}")
+
+        # Normalize both the existing filenames and YouTube titles for comparison
+        normalized_videos = sorted([get_comparable_name(item) for item in videos])
+        normalized_audios = sorted([get_comparable_name(item) for item in audios])
+        # The 'titles' list will now hold the original YouTube titles, not normalized yet
         titles = sorted([url.title for url in p.videos])
-        for title in titles:
-            if (
-                helpers.safe_filename(s=title, max_length=MAX_FILE_LENGTH)
-                not in videos
-            ):
-                print(title)
+        logger.debug(f"{titles=}")
+
+        # # Display debug information for the 5th element after normalization
+        # logger.info("Comparing audios[4] and titles[4] after normalization:")
+        # logger.info(f"Original audios[4] (repr): {audios[4]!r}")
+        # logger.info(f"Normalized audios[4] (repr): {normalized_audios[4]!r}")
+        # logger.info(f"Original titles[4] (repr): {titles[4]!r}")
+        # logger.info(f"Normalized titles[4] (repr): {get_comparable_name(titles[4])!r}")
+        # logger.info(f"Normalized audios[4] (chars): {[ord(c) for c in normalized_audios[4]]}")
+        # logger.info(f"Normalized titles[4] (chars): {[ord(c) for c in get_comparable_name(titles[4])]}")
+        # logger.info(f"Normalized comparison result: {normalized_audios[4] == get_comparable_name(titles[4])}")
+
+        # Prepare the target set for efficient lookup using normalized names
+        normalized_target = normalized_videos if len(videos) >= len(audios) else normalized_audios
+        normalized_target_set = set(normalized_target)
+
+        cnt = 0
+        for o_title in titles:  # Iterate over original YouTube titles
+            # Get the comparable name for the current YouTube title
+            comparable_o_title = get_comparable_name(o_title)
+
+            if comparable_o_title not in normalized_target_set:
+                cnt += 1
+                logger.info(f"Missing: original_title = {o_title!r}")
+                logger.info(f"         comparable_title = {comparable_o_title!r}")
+        logger.info(f"different {cnt=}")
 
 
 def main():
@@ -599,4 +647,4 @@ if __name__ == "__main__":
     # move_files()
     # remove_origional_video()
     # compare_audio_video()
-    # compare_video_playlist()
+    # compare_playlist()
