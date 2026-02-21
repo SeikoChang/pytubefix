@@ -57,7 +57,7 @@ DST_AUDIO = os.path.join(f"{PATH}", "日本演歌-Audio")
 
 CAPTION = True
 
-VIDEO = False
+VIDEO = True
 VIDEO_EXT = "mp4"
 VIDEO_MIME = "mp4"
 VIDEO_RES = "1080p"
@@ -74,7 +74,7 @@ AUDIO_BITRATE = "128kbps"
 AUDIO_CODE = "abr"
 AUDIO_KEEP_ORI = False
 
-RECONVERT = False
+RECONVERT = True
 CONVERT_VIDEO_CODE = (
     None  # "libx264" by fefault for .mp4, leave None for auto detection
 )
@@ -126,10 +126,10 @@ pls = [
     # "https://www.youtube.com/playlist?list=PLgQLKhyDqSaP0IPDJ7eXWvsGqOOH3_mqQ",  # 測試喇叭高HiFi音質音樂檔
     # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9IUHdNR6Busq_uZmsmXbv8",  # Christmas
     # "https://www.youtube.com/playlist?list=PL12UaAf_xzfpfxj4siikK9CW8idyJyZo2",  # 【日語】SPY×FAMILY間諜家家酒(全部集數)
-    "https://www.youtube.com/watch?v=7cQzvmJvLpU&list=PL1H2dev3GUtgYGOiJFWjZe2mX29VpraJN",  # 聽歌學英文
-    "https://www.youtube.com/playlist?list=PLwPx6OD5gb4imniZyKp7xo7pXew3QRTuq",  # QWER 1ST WORLDTOUR Setlist (Rockation, 2025)
+    # "https://www.youtube.com/watch?v=7cQzvmJvLpU&list=PL1H2dev3GUtgYGOiJFWjZe2mX29VpraJN",  # 聽歌學英文
+    # "https://www.youtube.com/playlist?list=PLwPx6OD5gb4imniZyKp7xo7pXew3QRTuq",  # QWER 1ST WORLDTOUR Setlist (Rockation, 2025)
     "https://youtube.com/playlist?list=PLhkqiApN_VYay4opZamqmnHIeKQtR9l-T&si=KYV2DqljMbF0W4mQ",  # 日本演歌
-    "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9IYfTrHA_fCb2Q7R72wtKZ",  # 投資
+    # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9IYfTrHA_fCb2Q7R72wtKZ",  # 投資
 ]
 
 cls: list = [
@@ -328,10 +328,17 @@ def download_yt(url):
             coverted_remote_full_filename = os.path.join(DST, full_filename)
 
         if os.path.exists(coverted_remote_full_filename):
-            logger.warning(
-                f"remote file = [{coverted_remote_full_filename}] already exists, skip converting video this time"
+            # Load the video clip
+            video_clip = VideoFileClip(coverted_remote_full_filename)
+            logger.debug(
+                f"video length = {video_clip.duration} audio = {video_clip.audio} fps = {video_clip.fps} h = {video_clip.h}"
             )
-            return True
+            if video_clip.audio:
+                logger.warning(
+                    f"remote file = [{coverted_remote_full_filename}] already exists, skip converting video this time"
+                )
+                return True
+
         try:
             # Load the video clip
             video_clip = VideoFileClip(remote_full_filename)
