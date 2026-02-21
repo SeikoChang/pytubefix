@@ -2,6 +2,7 @@
 per-file-ignores =
     colab.py: E501
     run.py: E501
+    run_old.py: E501
 
 *.py: E501
 [build-system]
