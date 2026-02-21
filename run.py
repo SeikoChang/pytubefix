@@ -101,21 +101,67 @@ os.makedirs(DST_AUDIO, exist_ok=True)
 vs: list[str] = [
     # Example video URLs (commented out)
     # "https://www.youtube.com/watch?v=zb3nAoJJGYo",
+    # "https://www.youtube.com/watch?v=BmtYHnvQcqw",
+    # "https://www.youtube.com/watch?v=6F-fAlGA0q0&list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
+    # "https://www.youtube.com/watch?v=SQmVb9wcMP0",
+    # "https://www.youtube.com/watch?v=HLhHMsh5a94",
+    # "https://youtube.com/watch?v=cFoXcO8llNI",
+    # "https://youtube.com/watch?v=YsKKuCUYUMU",
+    # "https://youtube.com/watch?v=bvymTFYfRmk",
+    # "https://youtube.com/watch?v=TZkg2SL-dkY",
+    # "https://youtube.com/watch?v=00T_pojzqpw",
+    # "https://www.youtube.com/watch?v=AiIBKcd4m5Q",
+    # "https://www.youtube.com/watch?v=7CgbJGUxRJg",
+    # "https://www.youtube.com/watch?v=qQzdAsjWGPg",
+    # "https://youtu.be/w019MzRosmk?si=-e4I9b3XNUE-W4nA",
+    # "https://youtu.be/ixbcvKCl4Jc?si=InmzDQxhoSjjXuLA",
+    # "https://www.youtube.com/watch?v=-tJtsKngXJU",
+    # "https://www.youtube.com/watch?v=oKGkr1bd6-c",
+    # "https://www.youtube.com/watch?v=I5PI1i2npGQ&list=RDI5PI1i2npGQ&start_radio=1",
+    # "https://www.youtube.com/watch?v=fcVHGZVCkDI&list=RDI5PI1i2npGQ&index=2",
+    # "https://youtu.be/KCy_5nhiXs0?si=jibLq1eGh6si4fD-",
+    # "https://youtube.com/watch?v=7g9xcCMdwns",
+    # "https://www.youtube.com/watch?v=YAnjSN9hhyM&list=RDYAnjSN9hhyM&start_radio=1",  # JOLIN 蔡依林 PLEASURE世界巡迴演唱會 TAIPEI 20260101 Full version
 ]
 
 pls = [
     # Example playlist URLs
+    # "https://youtube.com/playlist?list=PLf8MTi2c_8X8Vz5JGI57tNy2BlbjZkMxC&si=PliaxKExX5U48kPV",
+    # "https://youtube.com/playlist?list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
+    # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9XM74Pk2PuTKNo39C8bqTJ",
+    # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9CEJU-Unr7Gs6I3RYh6r1Y",
+    # "https://www.youtube.com/playlist?list=PLm390xdh7__Kp-7I-0uCjnYRaff79DaS-",  # Okinawa
+    # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X8IJcb11DCWoqTUH0QgsAOk",  # Okinawa
+    # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9Kmoz_rwLVYe18TOrJ9T2P",  # My HiFi
+    # "https://youtube.com/playlist?list=OLAK5uy_neh80RHNGYi1gPdfpaoGWpwhTzq-YLZP4",  # Le Roi Est Mort, Vive Le Roi!
+    # "https://www.youtube.com/playlist?list=PLgQLKhyDqSaP0IPDJ7eXWvsGqOOH3_mqQ",  # 測試喇叭高HiFi音質音樂檔
+    # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9IUHdNR6Busq_uZmsmXbv8",  # Christmas
+    # "https://www.youtube.com/playlist?list=PL12UaAf_xzfpfxj4siikK9CW8idyJyZo2",  # 【日語】SPY×FAMILY間諜家家酒(全部集數)
+    # "https://www.youtube.com/watch?v=7cQzvmJvLpU&list=PL1H2dev3GUtgYGOiJFWjZe2mX29VpraJN",  # 聽歌學英文
+    # "https://www.youtube.com/playlist?list=PLwPx6OD5gb4imniZyKp7xo7pXew3QRTuq",  # QWER 1ST WORLDTOUR Setlist (Rockation, 2025)
     "https://youtube.com/playlist?list=PLhkqiApN_VYay4opZamqmnHIeKQtR9l-T&si=KYV2DqljMbF0W4mQ",  # 日本演歌
+    # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9IYfTrHA_fCb2Q7R72wtKZ",  # 投資
 ]
 
 cls: list = [
     # Example channel URLs
     # "https://www.youtube.com/@ProgrammingKnowledge/featured",
+    # "https://www.youtube.com/@LillianChiu101",
+    # "https://www.youtube.com/@kellytsaii",
 ]
 
 qls = [
     # Example search queries: (query string, filter, top N results)
+    # ("Programming Knowledge", VIEW_COUNT, 1),
+    # ("GitHub Issue Best Practices", VIEW_COUNT, 1),
+    # ("global news", UPLOAD_DATE, 5),
+    # ("breaking news, 台灣 新聞", UPLOAD_DATE, 3),
     ("learn english", RELEVANCE, 3),
+    # (
+    #     "Tee TA Cote Jay Park) SURL  CY NRE 18  (C1) seaRseREa at  mbit  cram  ars Snow eae? SS . ey Me ",
+    #     RELEVANCE,
+    #     2,
+    # ),  # test garbled characters
 ]
 
 # --- Helper Functions --- #
