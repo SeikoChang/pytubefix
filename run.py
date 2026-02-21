@@ -369,6 +369,12 @@ def download_yt(url):
             #     new_audioclip = CompositeAudioClip([audioclip])
             #     videoclip.audio = new_audioclip
             #     videoclip.write_videofile(remote_full_filename)
+
+            # Load the video clip
+            video_clip = VideoFileClip(converted_full_filename)
+            logger.debug(
+                f"video length = {video_clip.duration} audio = {video_clip.audio} fps = {video_clip.fps} h = {video_clip.h}"
+            )
             logger.info(
                 f"moving converted video from = {converted_full_filename} to = {coverted_remote_full_filename}"
             )
@@ -433,6 +439,35 @@ def remove_origional_video():
         destination = video[:-4]
         logger.info(msg=f"moving... {source=} to {destination=}")
         shutil.move(source, destination)
+
+
+def compare_audio_video():
+    videos = glob.glob(os.path.join(DST, r"*.{ext}".format(ext=VIDEO_EXT)))
+    videos = sorted([os.path.splitext(os.path.basename(video))[0] for video in videos])
+
+    audios = glob.glob(os.path.join(DST_AUDIO, r"*.{ext}".format(ext=AUDIO_EXT)))
+    audios = sorted([os.path.splitext(os.path.basename(audio))[0] for audio in audios])
+
+    for video in videos:
+        if video not in audios:
+            print(video)
+
+
+def compare_video_playlist():
+    for pl in pls:
+        p = Playlist(pl)
+        logger.info(f"Playlist ... {p.title}")
+        DST = os.path.join(f"{PATH}", p.title)
+        videos = glob.glob(os.path.join(DST, r"*.{ext}".format(ext=VIDEO_EXT)))
+        videos = sorted([os.path.splitext(os.path.basename(video))[0] for video in videos])
+
+        titles = sorted([url.title for url in p.videos])
+        for title in titles:
+            if (
+                helpers.safe_filename(s=title, max_length=MAX_FILE_LENGTH)
+                not in videos
+            ):
+                print(title)
 
 
 def main():
@@ -561,5 +596,7 @@ def _main():
 
 if __name__ == "__main__":
     main()
-    move_files()
+    # move_files()
     # remove_origional_video()
+    # compare_audio_video()
+    # compare_video_playlist()
