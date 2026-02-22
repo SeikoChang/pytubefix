@@ -1,3 +1,4 @@
+import hashlib
 import os
 import sys
 import glob
@@ -198,6 +199,34 @@ class YouTubeDownloader:
             #     2,
             # ),  # test garbled characters
         ]
+
+    def _calculate_file_hash(
+        self, filepath: str, hash_algorithm=hashlib.sha256, block_size=4096
+    ) -> str:
+        """Calculates the hash of a file to check for content duplication.
+
+        Args:
+            filepath (str): The path to the file.
+            hash_algorithm: The hashing algorithm to use (e.g., hashlib.sha256).
+            block_size (int): The size of chunks to read from the file.
+
+        Returns:
+            str: The hexadecimal representation of the file's hash, or an empty string
+                 if the file does not exist or an error occurs.
+        """
+        if not os.path.exists(filepath):
+            self.logger.warning(f"File not found for hash calculation: {filepath}")
+            return ""
+
+        hasher = hash_algorithm()
+        try:
+            with open(filepath, "rb") as f:
+                for block in iter(lambda: f.read(block_size), b""):
+                    hasher.update(block)
+            return hasher.hexdigest()
+        except Exception as e:
+            self.logger.error(f"Error calculating hash for {filepath}: {e}")
+            return ""
 
     def _retry_function(self, retries: int = 1, delay: int = 1):
         """A decorator to retry a function multiple times with a delay
