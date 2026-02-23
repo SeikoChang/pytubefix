@@ -9,6 +9,10 @@ import unicodedata
 from functools import wraps
 from logging.handlers import TimedRotatingFileHandler
 
+import sqlite3
+from datetime import datetime
+import re
+
 from moviepy import AudioFileClip, VideoFileClip
 
 from pytubefix import Channel, Playlist, Search, YouTube, helpers
@@ -58,7 +62,9 @@ class YouTubeDownloader:
 
         # --- Logging Configuration --- #
         self.log_date_format = "%Y-%m-%d %H:%M:%S"
-        self.log_format = "%(asctime)s | %(levelname)s : %(message)s"
+        self.log_format = (
+            "%(asctime)s | %(levelname)s : %(message)s"  # Corrected logging format
+        )
         self.log_level = LOGGING_LEVEL
 
         # Configure base logging to display INFO level and above to stdout
@@ -1245,6 +1251,155 @@ class YouTubeDownloader:
                     )
 
 
+class YouTubeTaskManager:
+    """Manages YouTube video download tasks and their metadata in an SQLite database."""
+
+    def __init__(self, db_name='youtube_tasks.db', video_dst_dir=None, audio_dst_dir=None):
+        """Initializes the database connection and creates the tasks table if it doesn't exist."""
+        self.db_name = db_name
+        self.video_destination_directory = video_dst_dir
+        self.audio_destination_directory = audio_dst_dir
+        self.conn = None
+        self.cursor = None
+        self._connect()
+        self.create_table()
+
+    def _connect(self):
+        """Establishes a connection to the SQLite database."""
+        try:
+            self.conn = sqlite3.connect(self.db_name)
+            self.cursor = self.conn.cursor()
+            logging.info(f"Connected to database: {self.db_name}")
+        except sqlite3.Error as e:
+            logging.error(f"Error connecting to database {self.db_name}: {e}")
+            sys.exit(1)
+
+    def create_table(self):
+        """Creates the 'tasks' table with required columns if it doesn't already exist."""
+        try:
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    youtube_id TEXT NOT NULL UNIQUE,
+                    video_url TEXT NOT NULL,
+                    suggested_filename_base TEXT,
+                    final_filename_on_disk TEXT UNIQUE,
+                    added_date TEXT,
+                    last_updated_date TEXT
+                )
+            ''')
+            self.conn.commit()
+            logging.info("Table 'tasks' checked/created successfully.")
+        except sqlite3.Error as e:
+            logging.error(f"Error creating table 'tasks': {e}")
+            sys.exit(1)
+
+    @staticmethod
+    def _extract_youtube_id(video_url: str) -> str:
+        """Extracts the YouTube video ID from a given URL."""
+        # Regex for various YouTube URL formats
+        match = re.search(r"(?:v=|youtu\.be/|embed/|watch\?v=)([0-9A-Za-z_-]{11}).*", video_url)
+        if match:
+            return match.group(1)
+        return ""
+
+    def task_exists(self, youtube_id: str) -> bool:
+        """Checks if a task with the given YouTube ID already exists in the database."""
+        self.cursor.execute('SELECT 1 FROM tasks WHERE youtube_id = ?', (youtube_id,))
+        return self.cursor.fetchone() is not None
+
+    def add_task(self, video_url: str, video_title: str, max_file_length: int) -> dict or None:
+        """Adds a new download task to the database, ensuring unique YouTube ID and filename."""
+        youtube_id = self._extract_youtube_id(video_url)
+        if not youtube_id:
+            logging.error(f"Could not extract YouTube ID from URL: {video_url}")
+            return None
+
+        if self.task_exists(youtube_id):
+            logging.info(f"Task for YouTube ID {youtube_id} already exists. Skipping addition.")
+            return None
+
+        # Generate initial suggested filename base
+        suggested_filename_base = helpers.safe_filename(video_title, max_length=max_file_length)
+        
+        base_name_for_uniqueness = suggested_filename_base
+        counter = 0
+        final_filename_on_disk = suggested_filename_base
+
+        # Check for filename collisions (on disk and in DB)
+        while self._filename_collision_exists(final_filename_on_disk):
+            counter += 1
+            # Recalculate candidate filename for uniqueness
+            suffix = f"_{counter}"
+            # Ensure the name with suffix does not exceed max_file_length
+            if len(base_name_for_uniqueness) + len(suffix) > max_file_length:
+                # Truncate original base name to make space for the suffix
+                truncated_base = base_name_for_uniqueness[:max_file_length - len(suffix)]
+                final_filename_on_disk = f"{truncated_base}{suffix}"
+            else:
+                final_filename_on_disk = f"{base_name_for_uniqueness}{suffix}"
+
+            if counter > 999: # Arbitrary high counter, if it still collides, give up to prevent infinite loop
+                logging.warning(f"Could not generate unique filename for {video_title} within max_file_length {max_file_length} after many attempts. Skipping.")
+                return None
+
+        current_time = datetime.now().isoformat()
+        try:
+            self.cursor.execute(
+                '''INSERT INTO tasks (youtube_id, video_url, suggested_filename_base, final_filename_on_disk, added_date, last_updated_date) VALUES (?, ?, ?, ?, ?, ?)''',
+                (
+                    youtube_id,
+                    video_url,
+                    suggested_filename_base,
+                    final_filename_on_disk,
+                    current_time,
+                    current_time,
+                ),
+            )
+            self.conn.commit()
+            logging.info(f"Task added: {video_title} with unique filename {final_filename_on_disk}")
+            return {
+                "youtube_id": youtube_id,
+                "video_url": video_url,
+                "suggested_filename_base": suggested_filename_base,
+                "final_filename_on_disk": final_filename_on_disk,
+                "added_date": current_time,
+                "last_updated_date": current_time,
+            }
+        except sqlite3.IntegrityError as e:
+            logging.error(f"Database integrity error when adding task for {video_url}: {e}")
+            return None
+        except sqlite3.Error as e:
+            logging.error(f"Error adding task for {video_url}: {e}")
+            return None
+
+    def _filename_collision_exists(self, filename_base: str) -> bool:
+        """Checks if a filename (base name) already exists on disk or in the database."""
+        # Check on disk (for both video and audio extensions)
+        video_exists = False
+        if self.video_destination_directory:
+            video_exists = os.path.exists(os.path.join(self.video_destination_directory, f"{filename_base}.mp4"))
+        
+        audio_exists = False
+        if self.audio_destination_directory:
+            audio_exists = os.path.exists(os.path.join(self.audio_destination_directory, f"{filename_base}.mp3"))
+
+        if video_exists or audio_exists:
+            return True
+
+        # Check in database (for final_filename_on_disk)
+        self.cursor.execute('SELECT 1 FROM tasks WHERE final_filename_on_disk = ?', (filename_base,))
+        if self.cursor.fetchone() is not None:
+            return True
+        return False
+
+    def close(self):
+        """Closes the database connection."""
+        if self.conn:
+            self.conn.close()
+            logging.info("Database connection closed.")
+
+
 def _main():
     """An alternative main function, likely for testing individual pytubefix functionalities.
     This function is not called in the main execution block but serves as an example.
@@ -1252,7 +1407,7 @@ def _main():
     playlist_list = [
         "https://youtube.com/playlist?list=PLhkqiApN_VYay4opZamqmnHIeKQtR9l-T&si=KYV2DqljMbF0W4mQ",  # 日本演歌
     ]
-    example_url = "https://youtube.com/watch?v=7g9xcCMdwns"
+    example_url = "https://www.youtube.com/watch?v=7g9xcCMdwns"
     yt_obj = YouTube(example_url, on_progress_callback=on_progress)
     logging.info(f"YouTube Title: {yt_obj.title}")
     highest_res_stream = yt_obj.streams.get_highest_resolution(
@@ -1319,5 +1474,36 @@ def _main():
 if __name__ == "__main__":
     # Instantiate the downloader and run the main process
     downloader = YouTubeDownloader()
+    # Set arbitrary destination directories for demonstration if not already set globally
+    if not downloader.video_destination_directory:
+        downloader.video_destination_directory = os.path.join(
+            downloader.base_path, "VideoDownloads"
+        )
+        os.makedirs(downloader.video_destination_directory, exist_ok=True)
+    if not downloader.audio_destination_directory:
+        downloader.audio_destination_directory = os.path.join(
+            downloader.base_path, "AudioDownloads"
+        )
+        os.makedirs(downloader.audio_destination_directory, exist_ok=True)
+
     downloader.run()
     downloader._compare_playlist_downloads()
+
+    # Example usage of YouTubeTaskManager
+    task_manager = YouTubeTaskManager(
+        video_dst_dir=downloader.video_destination_directory,
+        audio_dst_dir=downloader.audio_destination_directory,
+    )
+    # Add a dummy task to demonstrate the new methods
+    dummy_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    dummy_title = "Never Gonna Give You Up"
+    task_manager.add_task(dummy_url, dummy_title, downloader.max_file_length)
+
+    # Attempt to add the same task again to see duplicate handling
+    task_manager.add_task(dummy_url, dummy_title, downloader.max_file_length)
+
+    # Test filename collision (assuming a file named 'Test_1.mp3' might exist for demonstration)
+    dummy_url_2 = "https://www.youtube.com/watch?v=TESTID123"
+    dummy_title_2 = "Test"
+    task_manager.add_task(dummy_url_2, dummy_title_2, downloader.max_file_length)
+    task_manager.close()
