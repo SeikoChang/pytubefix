@@ -916,6 +916,8 @@ class YouTubeDownloader:
                 self.logger.info(
                     f"Processing Playlist for comparison: {playlist.title}"
                 )
+                self.logger.info(f"Original Playlist Title: {playlist.title}")
+                self.logger.info(f"Safe Playlist Title (for directory): {helpers.safe_filename(playlist.title, max_length=self.max_file_length)}")
 
                 # Set dynamic destination paths based on playlist title for comparison
                 current_video_dst = os.path.join(
@@ -948,7 +950,7 @@ class YouTubeDownloader:
                         for item in downloaded_video_basenames
                     ]
                 )
-                self.logger.debug(
+                self.logger.info(
                     f"Normalized video basenames for '{playlist.title}': "
                     f"{normalized_downloaded_videos}"
                 )
@@ -972,7 +974,7 @@ class YouTubeDownloader:
                         for item in downloaded_audio_basenames
                     ]
                 )
-                self.logger.debug(
+                self.logger.info(
                     f"Normalized audio basenames for '{playlist.title}': "
                     f"{normalized_downloaded_audios}"
                 )
@@ -990,7 +992,7 @@ class YouTubeDownloader:
                 normalized_youtube_titles = sorted(
                     [self._get_comparable_name(title) for title in youtube_titles]
                 )
-                self.logger.debug(
+                self.logger.info(
                     f"Normalized YouTube titles from playlist '{playlist.title}': "
                     f"{normalized_youtube_titles}"
                 )
