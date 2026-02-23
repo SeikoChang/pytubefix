@@ -292,6 +292,37 @@ class YouTubeDownloader:
         return outer_decorator
 
     @staticmethod
+    def _retry_decorator_factory(retries: int = 1, delay: int = 1):
+        """A static method that acts as a decorator factory for retrying functions.
+        It expects the decorated method to be an instance method, and will extract
+        the logger from the instance (self).
+        """
+        def outer_decorator(func):
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                # The first argument of an instance method is 'self'
+                instance_self = args[0]
+                # Access the logger from the instance
+                _logger = getattr(instance_self, 'logger', logging.getLogger())
+                err = ""
+                for i in range(1, retries + 1):
+                    try:
+                        return func(*args, **kwargs)
+                    except Exception as e:
+                        _logger.error(
+                            f"Retry [{func.__module__}.{func.__name__}] "
+                            f"[{i}/{retries}] delay [{delay}] secs, reason: {e}"
+                        )
+                        time.sleep(delay)
+                        err = str(e)
+                # If all retries fail, re-raise the last exception
+                raise Exception(
+                    f"[{func.__module__}.{func.__name__}] All retries failed: {err}"
+                )
+            return wrapper
+        return outer_decorator
+
+    @staticmethod
     def _remove_characters(filename: str) -> str:
         """Removes illegal characters from a filename string.
 
@@ -338,6 +369,7 @@ class YouTubeDownloader:
             s=normalized_string, max_length=self.max_file_length
         )
 
+    # @_retry_decorator_factory(retries=3, delay=5)
     def _download_youtube_video(self, url: str) -> bool:
         """Downloads a YouTube video and its audio, optionally converting
         and merging them.
