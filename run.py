@@ -22,6 +22,16 @@ from pytubefix.exceptions import (
     ExtractError,
 )
 
+LOGGING_LEVEL = logging.DEBUG
+DOWNLOAD_CAPTIONS = True
+DOWNLOAD_VIDEO = False
+DOWNLOAD_AUDIO = True
+RECOVERT_MEDIA = False
+
+PLAYLIST_DOWNLOAD = True
+CHANNEL_DOWNLOAD = False
+SEARCH_DOWNLOAD = False
+
 
 class YouTubeDownloader:
     """A class to download YouTube videos, playlists, or channel content,
@@ -49,7 +59,7 @@ class YouTubeDownloader:
         # --- Logging Configuration --- #
         self.log_date_format = "%Y-%m-%d %H:%M:%S"
         self.log_format = "%(asctime)s | %(levelname)s : %(message)s"
-        self.log_level = logging.INFO
+        self.log_level = LOGGING_LEVEL
 
         # Configure base logging to display INFO level and above to stdout
         logging.basicConfig(
@@ -93,9 +103,9 @@ class YouTubeDownloader:
         )  # Default audio destination
 
         # --- Download Preferences --- #
-        self.download_captions = True  # Download captions if available
+        self.download_captions = DOWNLOAD_CAPTIONS  # Download captions if available
 
-        self.download_video = True  # Enable video download
+        self.download_video = DOWNLOAD_VIDEO  # Enable video download
         self.video_extension = "mp4"  # Desired video file extension
         self.video_mime_type = "mp4"  # Video MIME type filter
         self.video_resolution = "1080p"  # Desired video resolution
@@ -108,14 +118,14 @@ class YouTubeDownloader:
         )
         self.stream_order_by = "itag"  # Stream sorting order
 
-        self.download_audio = True  # Enable audio download
+        self.download_audio = DOWNLOAD_AUDIO  # Enable audio download
         self.audio_extension = "mp3"  # Desired audio file extension
         self.audio_mime_type = "mp4"  # Audio MIME type filter (e.g., 'mp4' for m4a)
         self.audio_bitrate = "128kbps"  # Desired audio bitrate
         self.audio_codec = "abr"  # Desired audio codec (not strictly enforced)
         self.keep_original_audio = False  # Keep original audio file after conversion
 
-        self.reconvert_media = True  # Reconvert video/audio to merge or re-encode
+        self.reconvert_media = RECOVERT_MEDIA  # Reconvert video/audio to merge or re-encode
         self.convert_video_codec = (
             None  # Codec for video re-encoding (moviepy) - None for auto
         )
@@ -124,9 +134,9 @@ class YouTubeDownloader:
         )
 
         # --- Modes of Operation --- #
-        self.enable_playlist_download = True  # Enable playlist downloads
-        self.enable_channel_download = False  # Enable channel downloads
-        self.enable_quick_search_download = False  # Enable quick search downloads
+        self.enable_playlist_download = PLAYLIST_DOWNLOAD  # Enable playlist downloads
+        self.enable_channel_download = CHANNEL_DOWNLOAD  # Enable channel downloads
+        self.enable_quick_search_download = SEARCH_DOWNLOAD  # Enable quick search downloads
 
         # Create destination directories if they don't exist
         os.makedirs(self.video_destination_directory, exist_ok=True)
@@ -175,8 +185,9 @@ class YouTubeDownloader:
             # "https://www.youtube.com/playlist?list=PL12UaAf_xzfpfxj4siikK9CW8idyJyZo2",  # 【日語】SPY×FAMILY間諜家家酒(全部集數)
             # "https://www.youtube.com/watch?v=7cQzvmJvLpU&list=PL1H2dev3GUtgYGOiJFWjZe2mX29VpraJN",  # 聽歌學英文
             # "https://www.youtube.com/playlist?list=PLwPx6OD5gb4imniZyKp7xo7pXew3QRTuq",  # QWER 1ST WORLDTOUR Setlist (Rockation, 2025)
-            "https://youtube.com/playlist?list=PLhkqiApN_VYay4opZamqmnHIeKQtR9l-T&si=KYV2DqljMbF0W4mQ",  # 日本演歌
+            # "https://youtube.com/playlist?list=PLhkqiApN_VYay4opZamqmnHIeKQtR9l-T&si=KYV2DqljMbF0W4mQ",  # 日本演歌
             # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9IYfTrHA_fCb2Q7R72wtKZ",  # 投資
+            "https://www.youtube.com/playlist?list=PLf8GXxJN5qee681F2CR1zxhEJTktJE7BT",  # QWER Color Coded Lyrics
         ]
 
         self.channel_urls = [
@@ -358,15 +369,17 @@ class YouTubeDownloader:
 
         # Download captions if enabled
         if self.download_captions:
-            for caption_code in yt.captions.keys():
-                self.logger.debug(f"Available caption: {caption_code}")
+            for caption in yt.captions.keys():
+                caption_code = caption.code
+                caption_name = caption.name
+                self.logger.debug(f"Available caption: {caption_code} name: {caption_name}")
                 remote_caption_filepath = os.path.join(
                     self.video_destination_directory,
                     f"{video_full_filename}.{caption_code}.txt",
                 )
                 try:
                     caption_track = yt.captions[caption_code]
-                    caption_track.save(remote_caption_filepath)
+                    caption_track.save_captions(remote_caption_filepath)
                     self.logger.info(
                         f"Caption for {caption_code} saved to "
                         f"{remote_caption_filepath}"
