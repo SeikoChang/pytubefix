@@ -89,7 +89,9 @@ class YouTubeDownloader:
         self.env = os.getenv("ENV", "DEV")
 
         # --- File and Directory Settings --- #
-        self.max_file_length = 63  # Maximum length for filenames
+        self.max_file_length = (
+            255  # Maximum length for filenames (Increased from 63 to 255)
+        )
         self.dry_run = False  # If True, no actual downloads will occur
         self.download_all_streams = (
             False  # If True, download all available streams (not used extensively)
@@ -125,7 +127,9 @@ class YouTubeDownloader:
         self.audio_codec = "abr"  # Desired audio codec (not strictly enforced)
         self.keep_original_audio = False  # Keep original audio file after conversion
 
-        self.reconvert_media = RECOVERT_MEDIA  # Reconvert video/audio to merge or re-encode
+        self.reconvert_media = (
+            RECOVERT_MEDIA  # Reconvert video/audio to merge or re-encode
+        )
         self.convert_video_codec = (
             None  # Codec for video re-encoding (moviepy) - None for auto
         )
@@ -136,7 +140,9 @@ class YouTubeDownloader:
         # --- Modes of Operation --- #
         self.enable_playlist_download = PLAYLIST_DOWNLOAD  # Enable playlist downloads
         self.enable_channel_download = CHANNEL_DOWNLOAD  # Enable channel downloads
-        self.enable_quick_search_download = SEARCH_DOWNLOAD  # Enable quick search downloads
+        self.enable_quick_search_download = (
+            SEARCH_DOWNLOAD  # Enable quick search downloads
+        )
 
         # Create destination directories if they don't exist
         os.makedirs(self.video_destination_directory, exist_ok=True)
@@ -182,7 +188,7 @@ class YouTubeDownloader:
             # "https://youtube.com/playlist?list=OLAK5uy_neh80RHNGYi1gPdfpaoGWpwhTzq-YLZP4",  # Le Roi Est Mort, Vive Le Roi!
             # "https://www.youtube.com/playlist?list=PLgQLKhyDqSaP0IPDJ7eXWvsGqOOH3_mqQ",  # 測試喇叭高HiFi音質音樂檔
             # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9IUHdNR6Busq_uZmsmXbv8",  # Christmas
-            # "https://www.youtube.com/playlist?list=PL12UaAf_xzfpfxj4siikK9CW8idyJyZo2",  # 【日語】SPY×FAMILY間諜家家酒(全部集數)
+            # "https://www.youtube.com/playlist?list=PL12UaAf_xzfpfxj4siikK9CW8idyZo2",  # 【日語】SPY×FAMILY間諜家家酒(全部集數)
             # "https://www.youtube.com/watch?v=7cQzvmJvLpU&list=PL1H2dev3GUtgYGOiJFWjZe2mX29VpraJN",  # 聽歌學英文
             # "https://www.youtube.com/playlist?list=PLwPx6OD5gb4imniZyKp7xo7pXew3QRTuq",  # QWER 1ST WORLDTOUR Setlist (Rockation, 2025)
             # "https://youtube.com/playlist?list=PLhkqiApN_VYay4opZamqmnHIeKQtR9l-T&si=KYV2DqljMbF0W4mQ",  # 日本演歌
@@ -372,7 +378,9 @@ class YouTubeDownloader:
             for caption in yt.captions.keys():
                 caption_code = caption.code
                 caption_name = caption.name
-                self.logger.debug(f"Available caption: {caption_code} name: {caption_name}")
+                self.logger.debug(
+                    f"Available caption: {caption_code} name: {caption_name}"
+                )
                 remote_caption_filepath = os.path.join(
                     self.video_destination_directory,
                     f"{video_full_filename}.{caption_code}.txt",
@@ -397,8 +405,11 @@ class YouTubeDownloader:
         if self.download_video:
             # Download video stream
             if not os.path.exists(remote_video_filepath):
+                video_stream = None
+
+                # Attempt 1: Specific resolution and mime type
                 self.logger.info(
-                    f"Attempting to download video to {remote_video_filepath}"
+                    f"Attempting to find specific video stream: res={self.video_resolution}, mime_type=video/{self.video_mime_type}"
                 )
                 video_stream = (
                     yt.streams.filter(
@@ -410,8 +421,12 @@ class YouTubeDownloader:
                     .desc()
                     .last()
                 )
+
                 if not video_stream:
-                    # Fallback to highest resolution if specific filters yield no results
+                    # Attempt 2: Fallback to highest resolution progressive/non-progressive
+                    self.logger.warning(
+                        "Specific video stream not found. Trying fallback to highest resolution."
+                    )
                     video_stream = yt.streams.get_highest_resolution(
                         progressive=self.progressive_streams
                     )
@@ -491,42 +506,51 @@ class YouTubeDownloader:
 
                 # If no audio was extracted from video, download audio-only stream
                 if not audio_clip:
-                    self.logger.warning(
-                        "No audio track found in original video or extraction failed, "
-                        "downloading audio stream instead."
+                    audio_stream = None
+
+                    # Attempt 1: Specific audio mime type and bitrate
+                    self.logger.info(
+                        f"Attempting to find specific audio stream: mime_type=audio/{self.audio_mime_type}, abr={self.audio_bitrate}"
+                    )
+                    audio_stream = (
+                        yt.streams.filter(
+                            mime_type=f"audio/{self.audio_mime_type}",
+                            abr=self.audio_bitrate,
+                        )
+                        .asc()
+                        .first()
+                    )
+
+                    if not audio_stream:
+                        # Attempt 2: Fallback to highest bitrate audio-only stream with preferred mime_type
+                        self.logger.warning(
+                            f"Specific audio stream not found. Trying highest bitrate audio-only with mime_type=audio/{self.audio_mime_type}."
+                        )
+                        audio_stream = yt.streams.get_audio_only(
+                            subtype=self.audio_mime_type
+                        )
+
+                    if not audio_stream:
+                        # Attempt 3: Fallback to any available audio-only stream
+                        self.logger.warning(
+                            "Highest bitrate audio-only stream not found. Trying any available audio-only stream."
+                        )
+                        audio_stream = yt.streams.get_audio_only()
+
+                    if not audio_stream:
+                        self.logger.error(
+                            f"No suitable audio stream found for {url} after all fallbacks."
+                        )
+                        return False
+
+                    self.logger.info(
+                        f"Downloading audio stream... itag={audio_stream.itag} "
+                        f"res={audio_stream.resolution} "
+                        f"video_code={audio_stream.video_codec} "
+                        f"abr={audio_stream.abr} "
+                        f"audio_code={audio_stream.audio_codec}"
                     )
                     try:
-                        audio_stream = (
-                            yt.streams.filter(
-                                mime_type=f"audio/{self.audio_mime_type}",
-                                abr=self.audio_bitrate,
-                            )
-                            .asc()
-                            .first()
-                        )
-                        if not audio_stream:
-                            # Fallback to general audio-only stream if specific filter fails
-                            audio_stream = yt.streams.get_audio_only(
-                                subtype=self.audio_mime_type
-                            )
-                            if not audio_stream:
-                                self.logger.error(
-                                    f"No suitable audio stream found for {url} "
-                                    f"after fallback."
-                                )
-                                return False
-                            self.logger.warning(
-                                f"Specific audio stream not found, downloading "
-                                f"audio-only stream: {audio_stream}"
-                            )
-
-                        self.logger.info(
-                            f"Downloading audio stream... itag={audio_stream.itag} "
-                            f"res={audio_stream.resolution} "
-                            f"video_code={audio_stream.video_codec} "
-                            f"abr={audio_stream.abr} "
-                            f"audio_code={audio_stream.audio_codec}"
-                        )
                         audio_stream.download(
                             output_path=temp_download_folder,
                             filename=original_audio_filename,
@@ -917,7 +941,9 @@ class YouTubeDownloader:
                     f"Processing Playlist for comparison: {playlist.title}"
                 )
                 self.logger.info(f"Original Playlist Title: {playlist.title}")
-                self.logger.info(f"Safe Playlist Title (for directory): {helpers.safe_filename(playlist.title, max_length=self.max_file_length)}")
+                self.logger.info(
+                    f"Safe Playlist Title (for directory): {helpers.safe_filename(playlist.title, max_length=self.max_file_length)}"
+                )
 
                 # Set dynamic destination paths based on playlist title for comparison
                 current_video_dst = os.path.join(
