@@ -154,6 +154,11 @@ class YouTubeDownloader:
         os.makedirs(self.video_destination_directory, exist_ok=True)
         os.makedirs(self.audio_destination_directory, exist_ok=True)
 
+        # Apply retry decorator to download function
+        self._download_youtube_video = self._retry_function(retries=3, delay=5)(
+            self._download_youtube_video
+        )
+
         # --- Lists of URLs for individual videos, playlists, channels,
         # and search queries --- #
         self.video_urls = [
@@ -358,13 +363,13 @@ class YouTubeDownloader:
                 f"Failed to initialize YouTube object for {url} due to "
                 f"pytubefix error: {e}"
             )
-            return False
+            raise e
         except Exception as e:
             self.logger.error(
                 f"An unexpected error occurred while initializing YouTube "
                 f"object for {url}: {e}"
             )
-            return False
+            raise e
 
         self.logger.info(f"Title: {yt.title}")
         self.logger.info(f"Duration: {yt.length} sec")
@@ -1379,7 +1384,7 @@ class YouTubeTaskManager:
         video_exists = False
         if self.video_destination_directory:
             video_exists = os.path.exists(os.path.join(self.video_destination_directory, f"{filename_base}.mp4"))
-        
+
         audio_exists = False
         if self.audio_destination_directory:
             audio_exists = os.path.exists(os.path.join(self.audio_destination_directory, f"{filename_base}.mp3"))
