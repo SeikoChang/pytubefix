@@ -154,6 +154,12 @@ class YouTubeDownloader:
         os.makedirs(self.video_destination_directory, exist_ok=True)
         os.makedirs(self.audio_destination_directory, exist_ok=True)
 
+        # --- Task Manager --- #
+        self.task_manager = YouTubeTaskManager(
+            video_dst_dir=self.video_destination_directory,
+            audio_dst_dir=self.audio_destination_directory,
+        )
+
         # Apply retry decorator to download function
         self._download_youtube_video = self._retry_function(retries=3, delay=5)(
             self._download_youtube_video
@@ -163,6 +169,7 @@ class YouTubeDownloader:
         # and search queries --- #
         self.video_urls = [
             # Example video URLs (commented out)
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             # "https://www.youtube.com/watch?v=zb3nAoJJGYo",
             # "https://www.youtube.com/watch?v=BmtYHnvQcqw",
             # "https://www.youtube.com/watch?v=6F-fAlGA0q0&list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
@@ -227,6 +234,11 @@ class YouTubeDownloader:
             #     2,
             # ),  # test garbled characters
         ]
+    
+    def close(self):
+        """Closes the task manager's database connection."""
+        if self.task_manager:
+            self.task_manager.close()
 
     def _calculate_file_hash(
         self, filepath: str, hash_algorithm=hashlib.sha256, block_size=4096
@@ -381,6 +393,16 @@ class YouTubeDownloader:
             bool: True if the download/processing was successful (or dry run),
                   False otherwise.
         """
+        youtube_id = self.task_manager._extract_youtube_id(url)
+        if not youtube_id:
+            self.logger.error(f"Could not extract YouTube ID from URL: {url}")
+            return False
+
+        task = self.task_manager.get_task(youtube_id)
+        if task and task['status'] == 'completed':
+            self.logger.info(f"Task for YouTube ID {youtube_id} is already completed. Skipping.")
+            return True
+
         try:
             yt = YouTube(
                 url=url,
@@ -395,25 +417,35 @@ class YouTubeDownloader:
                 f"Failed to initialize YouTube object for {url} due to "
                 f"pytubefix error: {e}"
             )
+            if task:
+                self.task_manager.update_task(youtube_id, {'status': 'failed', 'error_message': str(e)})
             raise e
         except Exception as e:
             self.logger.error(
                 f"An unexpected error occurred while initializing YouTube "
                 f"object for {url}: {e}"
             )
+            if task:
+                self.task_manager.update_task(youtube_id, {'status': 'failed', 'error_message': str(e)})
             raise e
+        
+        if not task:
+            task = self.task_manager.add_task(url, yt.title, self.max_file_length)
+            if not task:
+                return False
+
+        self.task_manager.update_task(youtube_id, {'status': 'in_progress'})
 
         self.logger.info(f"Title: {yt.title}")
         self.logger.info(f"Duration: {yt.length} sec")
         self.logger.info("---")
         if self.dry_run:
             self.logger.info("Dry run: No actual download will occur.")
+            self.task_manager.update_task(youtube_id, {'status': 'completed', 'error_message': 'Dry run'})
             return True
 
         # Generate a safe filename from the video title
-        filename_base = helpers.safe_filename(
-            s=yt.title, max_length=self.max_file_length
-        )
+        filename_base = task['final_filename_on_disk']
         video_full_filename = f"{filename_base}.{self.video_extension}"
 
         # Download captions if enabled
@@ -478,6 +510,7 @@ class YouTubeDownloader:
                             f"No suitable video stream found for {url} "
                             f"after fallback."
                         )
+                        self.task_manager.update_task(youtube_id, {'status': 'failed', 'error_message': 'No suitable video stream found'})
                         return False
                     self.logger.warning(
                         f"Specific video stream not found, downloading highest "
@@ -508,6 +541,7 @@ class YouTubeDownloader:
                     self.logger.error(
                         f"Failed to download or move video for {url}: {e}"
                     )
+                    self.task_manager.update_task(youtube_id, {'status': 'failed', 'error_message': str(e)})
                     return False
             else:
                 self.logger.warning(
@@ -584,6 +618,7 @@ class YouTubeDownloader:
                         self.logger.error(
                             f"No suitable audio stream found for {url} after all fallbacks."
                         )
+                        self.task_manager.update_task(youtube_id, {'status': 'failed', 'error_message': 'No suitable audio stream found'})
                         return False
 
                     self.logger.info(
@@ -603,6 +638,7 @@ class YouTubeDownloader:
                         self.logger.error(
                             f"Failed to download audio stream for {url}: {e}"
                         )
+                        self.task_manager.update_task(youtube_id, {'status': 'failed', 'error_message': str(e)})
                         return False
 
                 # Write the audio clip to the final destination in the desired format
@@ -641,11 +677,13 @@ class YouTubeDownloader:
                         self.logger.error(
                             f"Failed to write or process audio file for {url}: {e}"
                         )
+                        self.task_manager.update_task(youtube_id, {'status': 'failed', 'error_message': str(e)})
                         return False
                 else:
                     self.logger.error(
                         f"No audio content available for {url} after all attempts."
                     )
+                    self.task_manager.update_task(youtube_id, {'status': 'failed', 'error_message': 'No audio content available'})
                     return False
             else:
                 self.logger.warning(
@@ -685,6 +723,7 @@ class YouTubeDownloader:
                             f"with audio, skipping conversion."
                         )
                         existing_video_clip.close()
+                        self.task_manager.update_task(youtube_id, {'status': 'completed'})
                         return True
                     existing_video_clip.close()
                 except Exception as e:
@@ -750,6 +789,7 @@ class YouTubeDownloader:
                 self.logger.error(
                     f"An error occurred during video/audio merging for {url}: {e}"
                 )
+                self.task_manager.update_task(youtube_id, {'status': 'failed', 'error_message': str(e)})
                 return False
 
             finally:
@@ -772,6 +812,20 @@ class YouTubeDownloader:
                     f"Cannot merge: Audio file not found at "
                     f"{remote_audio_filepath} for {url}"
                 )
+        
+        video_hash = self._calculate_file_hash(remote_video_filepath) if self.download_video else None
+        audio_hash = self._calculate_file_hash(remote_audio_filepath) if self.download_audio else None
+
+        self.task_manager.update_task(
+            youtube_id,
+            {
+                'status': 'completed',
+                'video_filepath': remote_video_filepath if self.download_video else None,
+                'audio_filepath': remote_audio_filepath if self.download_audio else None,
+                'video_hash': video_hash,
+                'audio_hash': audio_hash
+            }
+        )
 
         return True
 
@@ -1321,6 +1375,13 @@ class YouTubeTaskManager:
                     video_url TEXT NOT NULL,
                     suggested_filename_base TEXT,
                     final_filename_on_disk TEXT UNIQUE,
+                    status TEXT DEFAULT 'pending',
+                    video_filepath TEXT,
+                    audio_filepath TEXT,
+                    video_hash TEXT,
+                    audio_hash TEXT,
+                    retries INTEGER DEFAULT 0,
+                    error_message TEXT,
                     added_date TEXT,
                     last_updated_date TEXT
                 )
@@ -1345,6 +1406,40 @@ class YouTubeTaskManager:
         self.cursor.execute('SELECT 1 FROM tasks WHERE youtube_id = ?', (youtube_id,))
         return self.cursor.fetchone() is not None
 
+    def get_task(self, youtube_id: str) -> dict or None:
+        """Retrieves a task from the database by its YouTube ID."""
+        self.cursor.execute('SELECT * FROM tasks WHERE youtube_id = ?', (youtube_id,))
+        row = self.cursor.fetchone()
+        if row:
+            # Get column names from the cursor description
+            columns = [description[0] for description in self.cursor.description]
+            # Return a dictionary mapping column names to row values
+            return dict(zip(columns, row))
+        return None
+
+    def update_task(self, youtube_id: str, updates: dict):
+        """Updates a task with the given YouTube ID."""
+        # Filter out keys that are not columns in the table
+        self.cursor.execute("PRAGMA table_info(tasks)")
+        columns = [info[1] for info in self.cursor.fetchall()]
+        updates = {k: v for k, v in updates.items() if k in columns}
+
+        if not updates:
+            logging.warning("No valid columns to update for task.")
+            return
+
+        updates['last_updated_date'] = datetime.now().isoformat()
+        
+        set_clause = ", ".join([f"{key} = ?" for key in updates.keys()])
+        values = list(updates.values()) + [youtube_id]
+
+        try:
+            self.cursor.execute(f'UPDATE tasks SET {set_clause} WHERE youtube_id = ?', values)
+            self.conn.commit()
+            logging.info(f"Task {youtube_id} updated successfully.")
+        except sqlite3.Error as e:
+            logging.error(f"Error updating task {youtube_id}: {e}")
+
     def add_task(self, video_url: str, video_title: str, max_file_length: int) -> dict or None:
         """Adds a new download task to the database, ensuring unique YouTube ID and filename."""
         youtube_id = self._extract_youtube_id(video_url)
@@ -1354,7 +1449,7 @@ class YouTubeTaskManager:
 
         if self.task_exists(youtube_id):
             logging.info(f"Task for YouTube ID {youtube_id} already exists. Skipping addition.")
-            return None
+            return self.get_task(youtube_id)
 
         # Generate initial suggested filename base
         suggested_filename_base = helpers.safe_filename(video_title, max_length=max_file_length)
@@ -1383,26 +1478,23 @@ class YouTubeTaskManager:
         current_time = datetime.now().isoformat()
         try:
             self.cursor.execute(
-                '''INSERT INTO tasks (youtube_id, video_url, suggested_filename_base, final_filename_on_disk, added_date, last_updated_date) VALUES (?, ?, ?, ?, ?, ?)''',
+                '''INSERT INTO tasks (
+                    youtube_id, video_url, suggested_filename_base, final_filename_on_disk, 
+                    status, added_date, last_updated_date
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)''',
                 (
                     youtube_id,
                     video_url,
                     suggested_filename_base,
                     final_filename_on_disk,
+                    'pending',
                     current_time,
                     current_time,
                 ),
             )
             self.conn.commit()
             logging.info(f"Task added: {video_title} with unique filename {final_filename_on_disk}")
-            return {
-                "youtube_id": youtube_id,
-                "video_url": video_url,
-                "suggested_filename_base": suggested_filename_base,
-                "final_filename_on_disk": final_filename_on_disk,
-                "added_date": current_time,
-                "last_updated_date": current_time,
-            }
+            return self.get_task(youtube_id)
         except sqlite3.IntegrityError as e:
             logging.error(f"Database integrity error when adding task for {video_url}: {e}")
             return None
@@ -1525,22 +1617,4 @@ if __name__ == "__main__":
 
     downloader.run()
     downloader._compare_playlist_downloads()
-
-    # Example usage of YouTubeTaskManager
-    task_manager = YouTubeTaskManager(
-        video_dst_dir=downloader.video_destination_directory,
-        audio_dst_dir=downloader.audio_destination_directory,
-    )
-    # Add a dummy task to demonstrate the new methods
-    dummy_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-    dummy_title = "Never Gonna Give You Up"
-    task_manager.add_task(dummy_url, dummy_title, downloader.max_file_length)
-
-    # Attempt to add the same task again to see duplicate handling
-    task_manager.add_task(dummy_url, dummy_title, downloader.max_file_length)
-
-    # Test filename collision (assuming a file named 'Test_1.mp3' might exist for demonstration)
-    dummy_url_2 = "https://www.youtube.com/watch?v=TESTID123"
-    dummy_title_2 = "Test"
-    task_manager.add_task(dummy_url_2, dummy_title_2, downloader.max_file_length)
-    task_manager.close()
+    downloader.close()
