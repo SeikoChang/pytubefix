@@ -1,4 +1,3 @@
-%%writefile test_youtube_downloader.py
 import pytest
 from unittest.mock import MagicMock, patch
 import os
@@ -7,8 +6,9 @@ import logging
 import unicodedata
 from functools import wraps
 from logging.handlers import TimedRotatingFileHandler
+import sys  # Ensure sys is imported at the top level
 
-from moviepy import AudioFileClip, VideoFileClip
+from moviepy.editor import AudioFileClip, VideoFileClip
 
 from pytubefix import Channel, Playlist, Search, YouTube, helpers
 from pytubefix.cli import on_progress
@@ -47,7 +47,9 @@ class YouTubeDownloader:
 
         # --- Logging Configuration --- #
         self.log_date_format = "%Y-%m-%d %H:%M:%S"
-        self.log_format = "%(asctime)s | %(levelname)s : %(message)s"
+        self.log_format = (
+            "%(asctime)s | %(levelname)s : %(message)s"  # Corrected log_format
+        )
         self.log_level = logging.INFO
 
         # Configure base logging to display INFO level and above to stdout
@@ -112,9 +114,7 @@ class YouTubeDownloader:
         self.audio_mime_type = "mp4"  # Audio MIME type filter (e.g., 'mp4' for m4a)
         self.audio_bitrate = "128kbps"  # Desired audio bitrate
         self.audio_codec = "abr"  # Desired audio codec (not strictly enforced)
-        self.keep_original_audio = (
-            False  # Keep original audio file after conversion
-        )
+        self.keep_original_audio = False  # Keep original audio file after conversion
 
         self.reconvert_media = True  # Reconvert video/audio to merge or re-encode
         self.convert_video_codec = (
@@ -202,7 +202,18 @@ class YouTubeDownloader:
         cleaned_filename = ""
         # List of characters typically illegal in Windows/Unix filenames.
         # Using a set for efficient lookup.
-        illegal_chars_set = {"｜", ",", "/", "\\", ":", "*", "?", "<", ">", "\""}
+        illegal_chars_set = {
+            "｜",
+            ",",
+            "/",
+            "\\",
+            ":",
+            "*",
+            "?",
+            "<",
+            ">",
+            '"',
+        }  # Corrected illegal_chars_set
         for char in filename:
             if char not in illegal_chars_set:
                 cleaned_filename += char
@@ -753,9 +764,7 @@ class YouTubeDownloader:
             try:
                 source = video_path
                 destination = video_path[: -len(f".{self.video_extension}")]
-                self.logger.info(
-                    f"Moving original video: {source} to {destination}"
-                )
+                self.logger.info(f"Moving original video: {source} to {destination}")
                 shutil.move(source, destination)
             except FileNotFoundError:
                 self.logger.warning(
@@ -811,13 +820,13 @@ class YouTubeDownloader:
                     f"Video file '{video_name}' in "
                     f"'{self.video_destination_directory}' "
                     f"has no matching audio file in "
-                    f"'{self.audio_destination_directory}'"
+                    f"'{self.audio_destination_directory}'."
                 )
                 missing_audio_count += 1
         if missing_audio_count == 0:
             self.logger.info(
                 f"All video files in '{self.video_destination_directory}' have "
-                f"matching audio files in '{self.audio_destination_directory}'"
+                f"matching audio files in '{self.audio_destination_directory}'."
             )
 
     def _compare_playlist_downloads(self) -> None:
@@ -943,7 +952,10 @@ class YouTubeDownloader:
                         f"{missing_count}"
                     )
             except (
-                RegexMatchError, VideoUnavailable, LiveStreamError, ExtractError
+                RegexMatchError,
+                VideoUnavailable,
+                LiveStreamError,
+                ExtractError,
             ) as e:
                 self.logger.error(
                     f"Failed to load playlist {playlist_url} for comparison "
@@ -987,15 +999,16 @@ class YouTubeDownloader:
                     )
                     for duplicated_title in duplicated_original_titles_in_playlist:
                         self.logger.warning(f"  - Duplicated: {duplicated_title}")
-                    all_duplicated_titles.extend(
-                        duplicated_original_titles_in_playlist
-                    )
+                    all_duplicated_titles.extend(duplicated_original_titles_in_playlist)
                 else:
                     self.logger.info(
                         f"No duplicated titles found in playlist '{playlist.title}'."
                     )
             except (
-                RegexMatchError, VideoUnavailable, LiveStreamError, ExtractError
+                RegexMatchError,
+                VideoUnavailable,
+                LiveStreamError,
+                ExtractError,
             ) as e:
                 self.logger.error(
                     f"Failed to load playlist {playlist_url} for duplication check "
@@ -1108,9 +1121,7 @@ class YouTubeDownloader:
                     for video in search_results.videos[:top_n_results]:
                         self.logger.info(f"Search result Title: {video.title}")
                         self.logger.info(f"Search result URL: {video.watch_url}")
-                        self.logger.info(
-                            f"Search result Duration: {video.length} sec"
-                        )
+                        self.logger.info(f"Search result Duration: {video.length} sec")
                         self.logger.info("---")
                         self._download_videos_from_list([video])
                 except (
@@ -1132,17 +1143,18 @@ class YouTubeDownloader:
 
 # --- Pytest Fixtures and Test Cases --- #
 
+
 @pytest.fixture
 def downloader_instance():
     # Use a dummy logger for tests to avoid file I/O for logs
-    logger = logging.getLogger('test_logger')
-    logger.setLevel(logging.CRITICAL) # Suppress output during tests
+    logger = logging.getLogger("test_logger")
+    logger.setLevel(logging.CRITICAL)  # Suppress output during tests
     # Create a fresh instance for each test
     downloader = YouTubeDownloader()
-    downloader.logger = logger # Override the logger with a dummy one
+    downloader.logger = logger  # Override the logger with a dummy one
     # Ensure test directories are clean before and after each test
-    test_video_dir = './test_video_dst'
-    test_audio_dir = './test_audio_dst'
+    test_video_dir = "./test_video_dst"
+    test_audio_dir = "./test_audio_dst"
     if os.path.exists(test_video_dir):
         shutil.rmtree(test_video_dir)
     if os.path.exists(test_audio_dir):
@@ -1160,34 +1172,38 @@ def downloader_instance():
 
 @pytest.fixture
 def mock_youtube_object():
-    with patch('pytubefix.YouTube') as mock_yt:
+    with patch("pytubefix.YouTube") as mock_yt:
         mock_yt_instance = MagicMock()
         mock_yt_instance.title = "Test Video Title"
         mock_yt_instance.length = 120
         mock_yt_instance.check_availability.return_value = None
-        mock_yt_instance.captions = {'en': MagicMock(save=MagicMock())}
+        mock_yt_instance.captions = {"en": MagicMock(save=MagicMock())}
 
         # Mock stream objects
         mock_video_stream = MagicMock(
-            itag=22, resolution='720p', video_codec='avc1',
-            abr='128kbps', audio_codec='aac',
-            download=MagicMock()
+            itag=22,
+            resolution="720p",
+            video_codec="avc1",
+            abr="128kbps",
+            audio_codec="aac",
+            download=MagicMock(),
         )
         mock_audio_stream = MagicMock(
-            itag=140, abr='128kbps', audio_codec='aac',
-            download=MagicMock()
+            itag=140, abr="128kbps", audio_codec="aac", download=MagicMock()
         )
 
         # Mock .streams.filter().order_by().desc().last()
-        mock_yt_instance.streams.filter.return_value.order_by.return_value \
-            .desc.return_value.last.return_value = mock_video_stream
+        mock_yt_instance.streams.filter.return_value.order_by.return_value.desc.return_value.last.return_value = (
+            mock_video_stream
+        )
 
         # Mock .streams.get_highest_resolution()
         mock_yt_instance.streams.get_highest_resolution.return_value = mock_video_stream
 
         # Mock .streams.filter(mime_type=...).asc().first()
-        mock_yt_instance.streams.filter.return_value.asc.return_value \
-            .first.return_value = mock_audio_stream
+        mock_yt_instance.streams.filter.return_value.asc.return_value.first.return_value = (
+            mock_audio_stream
+        )
 
         # Mock .streams.get_audio_only()
         mock_yt_instance.streams.get_audio_only.return_value = mock_audio_stream
@@ -1198,7 +1214,7 @@ def mock_youtube_object():
 
 @pytest.fixture
 def mock_playlist_object():
-    with patch('pytubefix.Playlist') as mock_pl:
+    with patch("pytubefix.Playlist") as mock_pl:
         mock_pl_instance = MagicMock()
         mock_pl_instance.title = "Test Playlist Title"
         mock_video1 = MagicMock(title="Video 1", watch_url="http://test.com/v1")
@@ -1210,10 +1226,12 @@ def mock_playlist_object():
 
 @pytest.fixture
 def mock_channel_object():
-    with patch('pytubefix.Channel') as mock_ch:
+    with patch("pytubefix.Channel") as mock_ch:
         mock_ch_instance = MagicMock()
         mock_ch_instance.channel_name = "Test Channel Name"
-        mock_video1 = MagicMock(title="Channel Video 1", watch_url="http://test.com/cv1")
+        mock_video1 = MagicMock(
+            title="Channel Video 1", watch_url="http://test.com/cv1"
+        )
         mock_ch_instance.videos = [mock_video1]
         mock_ch.return_value = mock_ch_instance
         yield mock_ch_instance
@@ -1221,9 +1239,11 @@ def mock_channel_object():
 
 @pytest.fixture
 def mock_search_object():
-    with patch('pytubefix.Search') as mock_s:
+    with patch("pytubefix.Search") as mock_s:
         mock_s_instance = MagicMock()
-        mock_video1 = MagicMock(title="Search Result 1", watch_url="http://test.com/sr1", length=60)
+        mock_video1 = MagicMock(
+            title="Search Result 1", watch_url="http://test.com/sr1", length=60
+        )
         mock_s_instance.videos = [mock_video1]
         mock_s.return_value = mock_s_instance
         yield mock_s_instance
@@ -1231,8 +1251,9 @@ def mock_search_object():
 
 @pytest.fixture
 def mock_moviepy_clips():
-    with patch('moviepy.AudioFileClip') as mock_afc, \
-         patch('moviepy.VideoFileClip') as mock_vfc:
+    with patch("moviepy.AudioFileClip") as mock_afc, patch(
+        "moviepy.VideoFileClip"
+    ) as mock_vfc:
         mock_audio_clip = MagicMock()
         mock_audio_clip.close.return_value = None
         mock_audio_clip.write_audiofile.return_value = None
@@ -1240,7 +1261,7 @@ def mock_moviepy_clips():
 
         mock_video_clip = MagicMock()
         mock_video_clip.close.return_value = None
-        mock_video_clip.audio = None # Initially no audio
+        mock_video_clip.audio = None  # Initially no audio
         mock_video_clip.set_audio.return_value = mock_video_clip
         mock_video_clip.write_videofile.return_value = None
         mock_vfc.return_value = mock_video_clip
@@ -1251,14 +1272,19 @@ def mock_moviepy_clips():
 @pytest.fixture
 def mock_filesystem(tmp_path):
     # Use tmp_path fixture for isolated file system operations
-    with patch('os.path.exists') as mock_exists, \
-         patch('os.remove') as mock_remove, \
-         patch('os.makedirs') as mock_makedirs, \
-         patch('shutil.move') as mock_move, \
-         patch('glob.glob') as mock_glob, \
-         patch('pytubefix.helpers.safe_filename') as mock_safe_filename:
+    with patch("os.path.exists") as mock_exists, patch(
+        "os.remove"
+    ) as mock_remove, patch("os.makedirs") as mock_makedirs, patch(
+        "shutil.move"
+    ) as mock_move, patch(
+        "glob.glob"
+    ) as mock_glob, patch(
+        "pytubefix.helpers.safe_filename"
+    ) as mock_safe_filename:
 
-        mock_safe_filename.side_effect = lambda s, max_length: s.replace(' ', '_')[:max_length]
+        mock_safe_filename.side_effect = lambda s, max_length: s.replace(" ", "_")[
+            :max_length
+        ]
 
         # Default behavior: files don't exist unless specified
         mock_exists.return_value = False
@@ -1267,8 +1293,8 @@ def mock_filesystem(tmp_path):
         mock_makedirs.side_effect = lambda path, exist_ok=False: None
 
         # Simulate initial directory creation by the downloader
-        os.makedirs('./test_video_dst', exist_ok=True)
-        os.makedirs('./test_audio_dst', exist_ok=True)
+        os.makedirs("./test_video_dst", exist_ok=True)
+        os.makedirs("./test_audio_dst", exist_ok=True)
 
         # Mock glob to return empty lists by default, or specific files if needed
         mock_glob.return_value = []
@@ -1279,35 +1305,56 @@ def mock_filesystem(tmp_path):
             "makedirs": mock_makedirs,
             "move": mock_move,
             "glob": mock_glob,
-            "safe_filename": mock_safe_filename
+            "safe_filename": mock_safe_filename,
         }
 
 
 # --- Test Cases for _remove_characters ---
 
+
 def test_remove_characters_valid_string():
-    assert YouTubeDownloader._remove_characters("normal_file_name.mp4") == "normal_file_name.mp4"
+    assert (
+        YouTubeDownloader._remove_characters("normal_file_name.mp4")
+        == "normal_file_name.mp4"
+    )
+
 
 def test_remove_characters_with_illegal_chars():
-    assert YouTubeDownloader._remove_characters("file|name*with?illegal\\chars\"") == "filenamewithillegalchars"
+    assert (
+        YouTubeDownloader._remove_characters('file|name*with?illegal\\chars"')
+        == "filenamewithillegalchars"
+    )
+
 
 def test_remove_characters_empty_string():
     assert YouTubeDownloader._remove_characters("") == ""
 
+
 def test_remove_characters_only_illegal_chars():
-    assert YouTubeDownloader._remove_characters("|*?\"<>") == ""
+    assert YouTubeDownloader._remove_characters('|*?"<>') == ""
+
 
 def test_remove_characters_mixed_chars():
-    assert YouTubeDownloader._remove_characters("valid!file|name.mp4?") == "valid!filename.mp4"
+    assert (
+        YouTubeDownloader._remove_characters("valid!file|name.mp4?")
+        == "valid!filename.mp4"
+    )
+
 
 # --- Test Cases for _get_comparable_name ---
 
-def test_get_comparable_name_non_string_input(downloader_instance, caplog, mock_filesystem):
+
+def test_get_comparable_name_non_string_input(
+    downloader_instance, caplog, mock_filesystem
+):
     with caplog.at_level(logging.WARNING):
         result = downloader_instance._get_comparable_name(123)
         assert result == 123
         assert "_get_comparable_name received non-string input" in caplog.text
-    mock_filesystem["safe_filename"].assert_not_called() # Should not call safe_filename for non-string
+    mock_filesystem[
+        "safe_filename"
+    ].assert_not_called()  # Should not call safe_filename for non-string
+
 
 def test_get_comparable_name_valid_string(downloader_instance, mock_filesystem):
     test_string = "  My Awesome Video Title!  "
@@ -1321,49 +1368,62 @@ def test_get_comparable_name_valid_string(downloader_instance, mock_filesystem):
         s="  My Awesome Video Title!  ", max_length=downloader_instance.max_file_length
     )
 
-def test_get_comparable_name_unicode_and_ideographic_space(downloader_instance, mock_filesystem):
-    test_string = "\u65e5\u672c\u8a9e \u306e \u30bf\u30a4\u30c8\u30eb\u3000(\u30c6\u30b9\u30c8)"
-    expected_safe_filename_output = "\u65e5\u672c\u8a9e_\u306e_\u30bf\u30a4\u30c8\u30eb_(\u30c6\u30b9\u30c8)"
+
+def test_get_comparable_name_unicode_and_ideographic_space(
+    downloader_instance, mock_filesystem
+):
+    test_string = (
+        "\u65e5\u672c\u8a9e \u306e \u30bf\u30a4\u30c8\u30eb\u3000(\u30c6\u30b9\u30c8)"
+    )
+    expected_safe_filename_output = (
+        "\u65e5\u672c\u8a9e_\u306e_\u30bf\u30a4\u30c8\u30eb_(\u30c6\u30b9\u30c8)"
+    )
 
     mock_filesystem["safe_filename"].return_value = expected_safe_filename_output
 
     result = downloader_instance._get_comparable_name(test_string)
     assert result == expected_safe_filename_output
     mock_filesystem["safe_filename"].assert_called_once_with(
-        s="\u65e5\u672c\u8a9e \u306e \u30bf\u30a4\u30c8\u30eb (\u30c6\u30b9\u30c8)", # Note: unicodedata.normalize & replace("\u3000", " ") happens before safe_filename
-        max_length=downloader_instance.max_file_length
+        s="\u65e5\u672c\u8a9e \u306e \u30bf\u30a4\u30c8\u30eb (\u30c6\u30b9\u30c8)",  # Note: unicodedata.normalize & replace("\u3000", " ") happens before safe_filename
+        max_length=downloader_instance.max_file_length,
     )
+
 
 def test_get_comparable_name_truncation(downloader_instance, mock_filesystem):
     long_title = "A very very very very very very very very very very very very very very very very very long video title"
     downloader_instance.max_file_length = 20
     expected_safe_filename_output = "A_very_very_very_v"
 
-    mock_filesystem["safe_filename"].side_effect = lambda s, max_length: s.replace(' ', '_')[:max_length]
+    mock_filesystem["safe_filename"].side_effect = lambda s, max_length: s.replace(
+        " ", "_"
+    )[:max_length]
 
     result = downloader_instance._get_comparable_name(long_title)
     assert result == expected_safe_filename_output
     mock_filesystem["safe_filename"].assert_called_once_with(
         s="A very very very very very very very very very very very very very very very very very long video title",
-        max_length=20
+        max_length=20,
     )
 
 
 # --- Test Cases for _download_youtube_video ---
+
 
 def test_download_youtube_video_success_with_mocks(
     downloader_instance,
     mock_youtube_object,
     mock_moviepy_clips,
     mock_filesystem,
-    caplog
+    caplog,
 ):
     # Set up specific file system mock behaviors for this test
     # Sequence for os.path.exists calls:
     # 1. remote_video_filepath (initially False to trigger download)
     # 2. remote_audio_filepath (initially False to trigger download)
     # 3. existing_video_clip check (False, as we just downloaded)
-    mock_filesystem["exists"].side_effect = [False, False, False, False] + [True] * 10 # More True for subsequent checks
+    mock_filesystem["exists"].side_effect = [False, False, False, False] + [
+        True
+    ] * 10  # More True for subsequent checks
 
     # Ensure moviepy clips are returned by the mocks
     mock_audio_clip = mock_moviepy_clips["audio_clip"]
@@ -1374,11 +1434,13 @@ def test_download_youtube_video_success_with_mocks(
     downloader_instance.download_video = True
     downloader_instance.download_audio = True
     downloader_instance.reconvert_media = True
-    downloader_instance.video_resolution = '720p'
-    downloader_instance.audio_bitrate = '128kbps'
+    downloader_instance.video_resolution = "720p"
+    downloader_instance.audio_bitrate = "128kbps"
 
     with caplog.at_level(logging.INFO):
-        result = downloader_instance._download_youtube_video("http://test.youtube.com/watch?v=test_id")
+        result = downloader_instance._download_youtube_video(
+            "http://test.youtube.com/watch?v=test_id"
+        )
         assert result is True
         assert "Title: Test Video Title" in caplog.text
         assert "Caption for en saved to" in caplog.text
@@ -1388,14 +1450,14 @@ def test_download_youtube_video_success_with_mocks(
 
     # Verify mocks were called appropriately
     mock_youtube_object.check_availability.assert_called_once()
-    mock_youtube_object.captions['en'].save.assert_called_once()
+    mock_youtube_object.captions["en"].save.assert_called_once()
 
     # Ensure download was called on stream mocks
     mock_youtube_object.streams.filter.return_value.order_by.return_value.desc.return_value.last.return_value.download.assert_called_once_with(
-        output_path='.', filename='Test_Video_Title.mp4'
+        output_path=".", filename="Test_Video_Title.mp4"
     )
     mock_youtube_object.streams.filter.return_value.asc.return_value.first.return_value.download.assert_called_once_with(
-        output_path='.', filename='Test_Video_Title.mp4'
+        output_path=".", filename="Test_Video_Title.mp4"
     )
 
     # Verify moviepy operations for merging
@@ -1405,20 +1467,33 @@ def test_download_youtube_video_success_with_mocks(
     # Verify shutil.move was called for video and merged file
     assert mock_filesystem["move"].call_count >= 2
     mock_filesystem["move"].assert_any_call(
-        os.path.join('.', 'Test_Video_Title.mp4'),
-        os.path.join(downloader_instance.video_destination_directory, 'Test_Video_Title.mp4')
+        os.path.join(".", "Test_Video_Title.mp4"),
+        os.path.join(
+            downloader_instance.video_destination_directory, "Test_Video_Title.mp4"
+        ),
     )
     mock_filesystem["move"].assert_any_call(
-        'Test_Video_Title_merged.mp4',
-        os.path.join(downloader_instance.video_destination_directory, 'Test_Video_Title.mp4')
+        "Test_Video_Title_merged.mp4",
+        os.path.join(
+            downloader_instance.video_destination_directory, "Test_Video_Title.mp4"
+        ),
     )
 
     # Verify os.remove was called for the original video file (without audio)
     mock_filesystem["remove"].assert_any_call(
-        os.path.join(downloader_instance.video_destination_directory, 'Test_Video_Title.mp4')
+        os.path.join(
+            downloader_instance.video_destination_directory, "Test_Video_Title.mp4"
+        )
     )
 
-def test_download_youtube_video_video_only(downloader_instance, mock_youtube_object, mock_moviepy_clips, mock_filesystem, caplog):
+
+def test_download_youtube_video_video_only(
+    downloader_instance,
+    mock_youtube_object,
+    mock_moviepy_clips,
+    mock_filesystem,
+    caplog,
+):
     downloader_instance.download_video = True
     downloader_instance.download_audio = False
     downloader_instance.reconvert_media = False
@@ -1428,7 +1503,9 @@ def test_download_youtube_video_video_only(downloader_instance, mock_youtube_obj
     mock_filesystem["exists"].side_effect = [False] + [True] * 10
 
     with caplog.at_level(logging.INFO):
-        result = downloader_instance._download_youtube_video("http://test.youtube.com/watch?v=video_only")
+        result = downloader_instance._download_youtube_video(
+            "http://test.youtube.com/watch?v=video_only"
+        )
         assert result is True
         assert "Downloading video stream" in caplog.text
         assert "Attempting to download/convert audio" not in caplog.text
@@ -1436,11 +1513,18 @@ def test_download_youtube_video_video_only(downloader_instance, mock_youtube_obj
 
     mock_youtube_object.streams.filter.return_value.order_by.return_value.desc.return_value.last.return_value.download.assert_called_once()
     mock_youtube_object.streams.filter.return_value.asc.return_value.first.return_value.download.assert_not_called()
-    mock_youtube_object.captions['en'].save.assert_not_called()
+    mock_youtube_object.captions["en"].save.assert_not_called()
     mock_moviepy_clips["video_clip"].write_videofile.assert_not_called()
     mock_moviepy_clips["audio_clip"].write_audiofile.assert_not_called()
 
-def test_download_youtube_video_audio_only(downloader_instance, mock_youtube_object, mock_moviepy_clips, mock_filesystem, caplog):
+
+def test_download_youtube_video_audio_only(
+    downloader_instance,
+    mock_youtube_object,
+    mock_moviepy_clips,
+    mock_filesystem,
+    caplog,
+):
     downloader_instance.download_video = False
     downloader_instance.download_audio = True
     downloader_instance.reconvert_media = False
@@ -1450,7 +1534,9 @@ def test_download_youtube_video_audio_only(downloader_instance, mock_youtube_obj
     mock_filesystem["exists"].side_effect = [False] * 10
 
     with caplog.at_level(logging.INFO):
-        result = downloader_instance._download_youtube_video("http://test.youtube.com/watch?v=audio_only")
+        result = downloader_instance._download_youtube_video(
+            "http://test.youtube.com/watch?v=audio_only"
+        )
         assert result is True
         assert "Downloading audio stream" in caplog.text
         assert "Attempting to download video" not in caplog.text
@@ -1458,11 +1544,14 @@ def test_download_youtube_video_audio_only(downloader_instance, mock_youtube_obj
 
     mock_youtube_object.streams.filter.return_value.order_by.return_value.desc.return_value.last.return_value.download.assert_not_called()
     mock_youtube_object.streams.filter.return_value.asc.return_value.first.return_value.download.assert_called_once()
-    mock_youtube_object.captions['en'].save.assert_not_called()
+    mock_youtube_object.captions["en"].save.assert_not_called()
     mock_moviepy_clips["video_clip"].write_videofile.assert_not_called()
     mock_moviepy_clips["audio_clip"].write_audiofile.assert_called_once()
 
-def test_download_youtube_video_caption_only(downloader_instance, mock_youtube_object, mock_filesystem, caplog):
+
+def test_download_youtube_video_caption_only(
+    downloader_instance, mock_youtube_object, mock_filesystem, caplog
+):
     downloader_instance.download_video = False
     downloader_instance.download_audio = False
     downloader_instance.download_captions = True
@@ -1472,40 +1561,73 @@ def test_download_youtube_video_caption_only(downloader_instance, mock_youtube_o
     mock_filesystem["exists"].return_value = False
 
     with caplog.at_level(logging.INFO):
-        result = downloader_instance._download_youtube_video("http://test.youtube.com/watch?v=caption_only")
+        result = downloader_instance._download_youtube_video(
+            "http://test.youtube.com/watch?v=caption_only"
+        )
         assert result is True
         assert "Caption for en saved to" in caplog.text
         assert "Downloading video stream" not in caplog.text
         assert "Downloading audio stream" not in caplog.text
 
-    mock_youtube_object.captions['en'].save.assert_called_once()
+    mock_youtube_object.captions["en"].save.assert_called_once()
 
-def test_download_youtube_video_dry_run(downloader_instance, caplog, mock_youtube_object):
+
+def test_download_youtube_video_dry_run(
+    downloader_instance, caplog, mock_youtube_object
+):
     downloader_instance.dry_run = True
     with caplog.at_level(logging.INFO):
-        result = downloader_instance._download_youtube_video("http://test.youtube.com/watch?v=dry_run_id")
+        result = downloader_instance._download_youtube_video(
+            "http://test.youtube.com/watch?v=dry_run_id"
+        )
         assert result is True
         assert "Dry run: No actual download will occur." in caplog.text
     mock_youtube_object.streams.filter.return_value.order_by.return_value.desc.return_value.last.return_value.download.assert_not_called()
 
 
-def test_download_youtube_video_pytubefix_error_init(downloader_instance, mock_youtube_object, caplog):
-    mock_youtube_object.check_availability.side_effect = VideoUnavailable("Video unavailable")
+def test_download_youtube_video_pytubefix_error_init(
+    downloader_instance, mock_youtube_object, caplog
+):
+    mock_youtube_object.check_availability.side_effect = VideoUnavailable(
+        "Video unavailable"
+    )
     with caplog.at_level(logging.ERROR):
-        result = downloader_instance._download_youtube_video("http://test.youtube.com/watch?v=error_init")
+        result = downloader_instance._download_youtube_video(
+            "http://test.youtube.com/watch?v=error_init"
+        )
         assert result is False
-        assert "Failed to initialize YouTube object for http://test.youtube.com/watch?v=error_init due to pytubefix error: Video unavailable" in caplog.text
+        assert (
+            "Failed to initialize YouTube object for http://test.youtube.com/watch?v=error_init due to pytubefix error: Video unavailable"
+            in caplog.text
+        )
 
-def test_download_youtube_video_bot_detection_download(downloader_instance, mock_youtube_object, mock_filesystem, caplog):
+
+def test_download_youtube_video_bot_detection_download(
+    downloader_instance, mock_youtube_object, mock_filesystem, caplog
+):
     mock_filesystem["exists"].side_effect = [False, False] + [True] * 10
-    mock_youtube_object.streams.filter.return_value.order_by.return_value.desc.return_value.last.return_value.download.side_effect = BotDetection("Bot detected")
+    mock_youtube_object.streams.filter.return_value.order_by.return_value.desc.return_value.last.return_value.download.side_effect = BotDetection(
+        "Bot detected"
+    )
 
     with caplog.at_level(logging.ERROR):
-        result = downloader_instance._download_youtube_video("http://test.youtube.com/watch?v=bot_detect")
+        result = downloader_instance._download_youtube_video(
+            "http://test.youtube.com/watch?v=bot_detect"
+        )
         assert result is False
-        assert "Failed to download or move video for http://test.youtube.com/watch?v=bot_detect: Bot detected" in caplog.text
+        assert (
+            "Failed to download or move video for http://test.youtube.com/watch?v=bot_detect: Bot detected"
+            in caplog.text
+        )
 
-def test_download_youtube_video_moviepy_error_merge(downloader_instance, mock_youtube_object, mock_moviepy_clips, mock_filesystem, caplog):
+
+def test_download_youtube_video_moviepy_error_merge(
+    downloader_instance,
+    mock_youtube_object,
+    mock_moviepy_clips,
+    mock_filesystem,
+    caplog,
+):
     downloader_instance.download_video = True
     downloader_instance.download_audio = True
     downloader_instance.reconvert_media = True
@@ -1513,46 +1635,80 @@ def test_download_youtube_video_moviepy_error_merge(downloader_instance, mock_yo
 
     # Simulate files exist to allow merging to be attempted
     mock_filesystem["exists"].side_effect = [False, False] + [True] * 10
-    mock_youtube_object.streams.filter.return_value.order_by.return_value.desc.return_value.last.return_value.download.return_value = None
-    mock_youtube_object.streams.filter.return_value.asc.return_value.first.return_value.download.return_value = None
+    mock_youtube_object.streams.filter.return_value.order_by.return_value.desc.return_value.last.return_value.download.return_value = (
+        None
+    )
+    mock_youtube_object.streams.filter.return_value.asc.return_value.first.return_value.download.return_value = (
+        None
+    )
 
     # Mock moviepy's write_videofile to raise an exception
-    mock_moviepy_clips["video_clip"].write_videofile.side_effect = Exception("MoviePy merging error")
+    mock_moviepy_clips["video_clip"].write_videofile.side_effect = Exception(
+        "MoviePy merging error"
+    )
 
     with caplog.at_level(logging.ERROR):
-        result = downloader_instance._download_youtube_video("http://test.youtube.com/watch?v=moviepy_error")
+        result = downloader_instance._download_youtube_video(
+            "http://test.youtube.com/watch?v=moviepy_error"
+        )
         assert result is False
-        assert "An error occurred during video/audio merging for http://test.youtube.com/watch?v=moviepy_error: MoviePy merging error" in caplog.text
+        assert (
+            "An error occurred during video/audio merging for http://test.youtube.com/watch?v=moviepy_error: MoviePy merging error"
+            in caplog.text
+        )
 
 
-def test_download_youtube_video_no_video_stream(downloader_instance, mock_youtube_object, caplog, mock_filesystem):
+def test_download_youtube_video_no_video_stream(
+    downloader_instance, mock_youtube_object, caplog, mock_filesystem
+):
     # Ensure video stream is None, triggering fallback, and then fallback also fails
-    mock_youtube_object.streams.filter.return_value.order_by.return_value.desc.return_value.last.return_value = None
+    mock_youtube_object.streams.filter.return_value.order_by.return_value.desc.return_value.last.return_value = (
+        None
+    )
     mock_youtube_object.streams.get_highest_resolution.return_value = None
-    mock_filesystem["exists"].return_value = False # Ensure it tries to download
+    mock_filesystem["exists"].return_value = False  # Ensure it tries to download
 
     with caplog.at_level(logging.ERROR):
-        result = downloader_instance._download_youtube_video("http://test.youtube.com/watch?v=no_video")
+        result = downloader_instance._download_youtube_video(
+            "http://test.youtube.com/watch?v=no_video"
+        )
         assert result is False
-        assert "No suitable video stream found for http://test.youtube.com/watch?v=no_video after fallback." in caplog.text
+        assert (
+            "No suitable video stream found for http://test.youtube.com/watch?v=no_video after fallback."
+            in caplog.text
+        )
 
 
-def test_download_youtube_video_no_audio_stream_after_fallback(downloader_instance, mock_youtube_object, mock_filesystem, caplog):
+def test_download_youtube_video_no_audio_stream_after_fallback(
+    downloader_instance, mock_youtube_object, mock_filesystem, caplog
+):
     downloader_instance.download_video = False
     downloader_instance.download_audio = True
     downloader_instance.reconvert_media = False
     downloader_instance.download_captions = False
 
     mock_filesystem["exists"].side_effect = [False] * 10
-    mock_youtube_object.streams.filter.return_value.asc.return_value.first.return_value = None
-    mock_youtube_object.streams.get_audio_only.return_value = None # Fallback also fails
+    mock_youtube_object.streams.filter.return_value.asc.return_value.first.return_value = (
+        None
+    )
+    mock_youtube_object.streams.get_audio_only.return_value = (
+        None  # Fallback also fails
+    )
 
     with caplog.at_level(logging.ERROR):
-        result = downloader_instance._download_youtube_video("http://test.youtube.com/watch?v=no_audio_stream")
+        result = downloader_instance._download_youtube_video(
+            "http://test.youtube.com/watch?v=no_audio_stream"
+        )
         assert result is False
-        assert "No suitable audio stream found for http://test.youtube.com/watch?v=no_audio_stream after fallback." in caplog.text
+        assert (
+            "No suitable audio stream found for http://test.youtube.com/watch?v=no_audio_stream after fallback."
+            in caplog.text
+        )
 
-def test_download_youtube_video_video_already_exists(downloader_instance, mock_youtube_object, mock_filesystem, caplog):
+
+def test_download_youtube_video_video_already_exists(
+    downloader_instance, mock_youtube_object, mock_filesystem, caplog
+):
     downloader_instance.download_video = True
     downloader_instance.download_audio = False
     downloader_instance.reconvert_media = False
@@ -1561,12 +1717,20 @@ def test_download_youtube_video_video_already_exists(downloader_instance, mock_y
     mock_filesystem["exists"].side_effect = [True] * 10
 
     with caplog.at_level(logging.WARNING):
-        result = downloader_instance._download_youtube_video("http://test.youtube.com/watch?v=existing_video")
+        result = downloader_instance._download_youtube_video(
+            "http://test.youtube.com/watch?v=existing_video"
+        )
         assert result is True
-        assert f"Remote video file [{os.path.join(downloader_instance.video_destination_directory, 'Test_Video_Title.mp4')}] already exists, skipping video download." in caplog.text
+        assert (
+            f"Remote video file [{os.path.join(downloader_instance.video_destination_directory, 'Test_Video_Title.mp4')}] already exists, skipping video download."
+            in caplog.text
+        )
     mock_youtube_object.streams.filter.return_value.order_by.return_value.desc.return_value.last.return_value.download.assert_not_called()
 
-def test_download_youtube_video_audio_already_exists(downloader_instance, mock_youtube_object, mock_filesystem, caplog):
+
+def test_download_youtube_video_audio_already_exists(
+    downloader_instance, mock_youtube_object, mock_filesystem, caplog
+):
     downloader_instance.download_video = False
     downloader_instance.download_audio = True
     downloader_instance.reconvert_media = False
@@ -1575,12 +1739,19 @@ def test_download_youtube_video_audio_already_exists(downloader_instance, mock_y
     mock_filesystem["exists"].side_effect = [True] * 10
 
     with caplog.at_level(logging.WARNING):
-        result = downloader_instance._download_youtube_video("http://test.youtube.com/watch?v=existing_audio")
+        result = downloader_instance._download_youtube_video(
+            "http://test.youtube.com/watch?v=existing_audio"
+        )
         assert result is True
-        assert f"Remote audio file [{os.path.join(downloader_instance.audio_destination_directory, 'Test_Video_Title.mp3')}] already exists, skipping audio download." in caplog.text
+        assert (
+            f"Remote audio file [{os.path.join(downloader_instance.audio_destination_directory, 'Test_Video_Title.mp3')}] already exists, skipping audio download."
+            in caplog.text
+        )
     mock_youtube_object.streams.filter.return_value.asc.return_value.first.return_value.download.assert_not_called()
 
+
 # --- Test Cases for _download_videos_from_list ---
+
 
 def test_download_videos_from_list_empty(downloader_instance, caplog):
     # 1. Add a test case for `_download_videos_from_list` that verifies it handles an empty list of videos gracefully, logging an informational message. Use `caplog` to assert the log message.
@@ -1590,21 +1761,40 @@ def test_download_videos_from_list_empty(downloader_instance, caplog):
         assert "No videos provided for download." in caplog.text
 
 
-@patch('test_youtube_downloader.YouTubeDownloader._download_youtube_video', return_value=True)
-def test_download_videos_from_list_multiple(mock_download_youtube_video, downloader_instance):
+@patch(
+    "test_youtube_downloader.YouTubeDownloader._download_youtube_video",
+    return_value=True,
+)
+def test_download_videos_from_list_multiple(
+    mock_download_youtube_video, downloader_instance
+):
     # 2. Add a test case for `_download_videos_from_list` that verifies it iterates through a list of URLs and calls `_download_youtube_video` for each valid video URL. Mock `_download_youtube_video` to assert its calls.
-    video_urls = [MagicMock(title="Video 1", watch_url="http://test.com/v1"), MagicMock(title="Video 2", watch_url="http://test.com/v2")]
+    video_urls = [
+        MagicMock(title="Video 1", watch_url="http://test.com/v1"),
+        MagicMock(title="Video 2", watch_url="http://test.com/v2"),
+    ]
     downloader_instance._download_videos_from_list(video_urls)
     assert mock_download_youtube_video.call_count == 2
     mock_download_youtube_video.assert_any_call(video_urls[0].watch_url)
     mock_download_youtube_video.assert_any_call(video_urls[1].watch_url)
 
-@patch('test_youtube_downloader.YouTubeDownloader._download_youtube_video', return_value=True)
-@patch('pytubefix.helpers.safe_filename', side_effect=lambda s, max_length: s.replace(' ', '_'))
-@patch('os.makedirs')
+
+@patch(
+    "test_youtube_downloader.YouTubeDownloader._download_youtube_video",
+    return_value=True,
+)
+@patch(
+    "pytubefix.helpers.safe_filename",
+    side_effect=lambda s, max_length: s.replace(" ", "_"),
+)
+@patch("os.makedirs")
 def test_run_playlist_download_success(
-    mock_os_makedirs, mock_safe_filename, mock_download_youtube_video,
-    downloader_instance, mock_playlist_object, caplog
+    mock_os_makedirs,
+    mock_safe_filename,
+    mock_download_youtube_video,
+    downloader_instance,
+    mock_playlist_object,
+    caplog,
 ):
     # 3. Add a test case for `run` to verify that when `enable_playlist_download` is True, it correctly processes a playlist: instantiates `pytubefix.Playlist`, dynamically sets `video_destination_directory` and `audio_destination_directory` based on the playlist title, creates these directories (mock `os.makedirs`), and calls `_download_videos_from_list` with the playlist's videos. Ensure original destination directories are restored afterwards.
     downloader_instance.enable_playlist_download = True
@@ -1621,10 +1811,14 @@ def test_run_playlist_download_success(
         downloader_instance.run()
         assert "Starting playlist downloads..." in caplog.text
         assert "Processing Playlist: My Awesome Playlist" in caplog.text
-        
+
         # Verify dynamic directory setting
-        expected_video_dir = os.path.join(downloader_instance.base_path, "My_Awesome_Playlist")
-        expected_audio_dir = os.path.join(downloader_instance.base_path, "My_Awesome_Playlist-Audio")
+        expected_video_dir = os.path.join(
+            downloader_instance.base_path, "My_Awesome_Playlist"
+        )
+        expected_audio_dir = os.path.join(
+            downloader_instance.base_path, "My_Awesome_Playlist-Audio"
+        )
         mock_os_makedirs.assert_any_call(expected_video_dir, exist_ok=True)
         mock_os_makedirs.assert_any_call(expected_audio_dir, exist_ok=True)
         assert f"Video destination: {expected_video_dir}" in caplog.text
@@ -1640,22 +1834,26 @@ def test_run_playlist_download_success(
     assert downloader_instance.audio_destination_directory == original_audio_dst
 
 
-def test_run_playlist_download_pytubefix_error(downloader_instance, mock_playlist_object, caplog):
-    # 4. Add a test case for `run` to verify error handling when `pytubefix.Playlist` instantiation fails for a playlist URL within the `run` method. Use `caplog` to assert the error message.
+def test_run_playlist_download_pytubefix_error(
+    downloader_instance, mock_playlist_object, caplog
+):
     downloader_instance.enable_playlist_download = True
     downloader_instance.playlist_urls = ["http://invalid.playlist.com"]
     mock_playlist_object.side_effect = RegexMatchError("Could not parse playlist URL")
 
     with caplog.at_level(logging.ERROR):
         downloader_instance.run()
-        assert "Unable to process Playlist http://invalid.playlist.com due to pytubefix error: Could not parse playlist URL" in caplog.text
+        assert (
+            "Unable to process Playlist http://invalid.playlist.com due to pytubefix error: Could not parse playlist URL"
+            in caplog.text
+        )
 
 
 def test_move_local_files_to_destinations(downloader_instance, mock_filesystem):
     # Simulate files existing in CWD
     mock_filesystem["glob"].side_effect = [
-        ['file1.mp4', 'file2.mp4'], # for video_extension
-        ['audio1.mp3', 'audio2.mp3']  # for audio_extension
+        ["file1.mp4", "file2.mp4"],  # for video_extension
+        ["audio1.mp3", "audio2.mp3"],  # for audio_extension
     ]
 
     # Ensure files don't exist in destination initially (for shutil.move)
@@ -1664,25 +1862,31 @@ def test_move_local_files_to_destinations(downloader_instance, mock_filesystem):
     downloader_instance._move_local_files_to_destinations()
 
     assert mock_filesystem["move"].call_count == 4  # 2 videos + 2 audios
-    mock_filesystem["move"].assert_any_call('file1.mp4', os.path.join(downloader_instance.video_destination_directory, 'file1.mp4'))
-    mock_filesystem["move"].assert_any_call('audio1.mp3', os.path.join(downloader_instance.audio_destination_directory, 'audio1.mp3'))
-
-
-def test_remove_double_extension_videos(downloader_instance, mock_filesystem):
-    mock_filesystem["glob"].return_value = ['video.mp4.mp4']
-    mock_filesystem["exists"].return_value = True # Simulate file exists to be moved
-
-    downloader_instance._remove_double_extension_videos()
-
-    mock_filesystem["move"].assert_called_once_with(
-        'video.mp4.mp4', 'video.mp4'
+    mock_filesystem["move"].assert_any_call(
+        "file1.mp4",
+        os.path.join(downloader_instance.video_destination_directory, "file1.mp4"),
+    )
+    mock_filesystem["move"].assert_any_call(
+        "audio1.mp3",
+        os.path.join(downloader_instance.audio_destination_directory, "audio1.mp3"),
     )
 
 
-def test_compare_downloaded_audio_video_files_missing_audio(downloader_instance, mock_filesystem, caplog):
+def test_remove_double_extension_videos(downloader_instance, mock_filesystem):
+    mock_filesystem["glob"].return_value = ["video.mp4.mp4"]
+    mock_filesystem["exists"].return_value = True  # Simulate file exists to be moved
+
+    downloader_instance._remove_double_extension_videos()
+
+    mock_filesystem["move"].assert_called_once_with("video.mp4.mp4", "video.mp4")
+
+
+def test_compare_downloaded_audio_video_files_missing_audio(
+    downloader_instance, mock_filesystem, caplog
+):
     mock_filesystem["glob"].side_effect = [
-        ['video1.mp4', 'video2.mp4'], # videos
-        ['video1.mp3'] # audios
+        ["video1.mp4", "video2.mp4"],  # videos
+        ["video1.mp3"],  # audios
     ]
 
     with caplog.at_level(logging.WARNING):
@@ -1691,37 +1895,58 @@ def test_compare_downloaded_audio_video_files_missing_audio(downloader_instance,
         assert "has no matching audio file." in caplog.text
 
 
-@patch('pytubefix.helpers.safe_filename', side_effect=lambda s, max_length: s.replace(' ', '_'))
+@patch(
+    "pytubefix.helpers.safe_filename",
+    side_effect=lambda s, max_length: s.replace(" ", "_"),
+)
 def test_compare_playlist_downloads_missing_video(
-    mock_safe_filename, downloader_instance, mock_playlist_object, mock_filesystem, caplog
+    mock_safe_filename,
+    downloader_instance,
+    mock_playlist_object,
+    mock_filesystem,
+    caplog,
 ):
     downloader_instance.playlist_urls = ["http://test.com/playlist"]
     mock_playlist_object.title = "Test Playlist"
     mock_playlist_object.videos = [
         MagicMock(title="Video 1"),
-        MagicMock(title="Video 2")
+        MagicMock(title="Video 2"),
     ]
 
     # Mock glob for downloaded files
     mock_filesystem["glob"].side_effect = [
-        [f'{downloader_instance.base_path}Test_Playlist/Video_1.mp4'], # Downloaded videos
-        [f'{downloader_instance.base_path}Test_Playlist-Audio/Video_1.mp3'] # Downloaded audios
+        [
+            f"{downloader_instance.base_path}Test_Playlist/Video_1.mp4"
+        ],  # Downloaded videos
+        [
+            f"{downloader_instance.base_path}Test_Playlist-Audio/Video_1.mp3"
+        ],  # Downloaded audios
     ]
 
     with caplog.at_level(logging.INFO):
         downloader_instance._compare_playlist_downloads()
-        assert "Missing file detected in playlist 'Test Playlist': original_title='Video 2', comparable_title='Video_2'" in caplog.text
-        assert "Total missing files found for playlist 'Test Playlist': 1" in caplog.text
+        assert (
+            "Missing file detected in playlist 'Test Playlist': original_title='Video 2', comparable_title='Video_2'"
+            in caplog.text
+        )
+        assert (
+            "Total missing files found for playlist 'Test Playlist': 1" in caplog.text
+        )
 
 
-@patch('pytubefix.helpers.safe_filename', side_effect=lambda s, max_length: s.replace(' ', '_'))
-def test_find_duplicated_titles_in_playlists(mock_safe_filename, downloader_instance, mock_playlist_object, caplog):
+@patch(
+    "pytubefix.helpers.safe_filename",
+    side_effect=lambda s, max_length: s.replace(" ", "_"),
+)
+def test_find_duplicated_titles_in_playlists(
+    mock_safe_filename, downloader_instance, mock_playlist_object, caplog
+):
     downloader_instance.playlist_urls = ["http://test.com/playlist"]
     mock_playlist_object.title = "Test Playlist"
     mock_playlist_object.videos = [
         MagicMock(title="Duplicate Video"),
         MagicMock(title="Unique Video"),
-        MagicMock(title="Duplicate Video")
+        MagicMock(title="Duplicate Video"),
     ]
 
     with caplog.at_level(logging.WARNING):
@@ -1729,15 +1954,22 @@ def test_find_duplicated_titles_in_playlists(mock_safe_filename, downloader_inst
         assert "Found duplicated titles in playlist 'Test Playlist'!!!" in caplog.text
         assert "Duplicated: Duplicate Video" in caplog.text
         assert "Duplicate Video" in duplicates
-        assert len(duplicates) == 1 # Only one original title is duplicated
+        assert len(duplicates) == 1  # Only one original title is duplicated
 
 
-@patch('test_youtube_downloader.YouTubeDownloader._download_videos_from_list')
-@patch('pytubefix.helpers.safe_filename', side_effect=lambda s, max_length: s.replace(' ', '_')[:max_length])
-@patch('os.makedirs')
+@patch("test_youtube_downloader.YouTubeDownloader._download_videos_from_list")
+@patch(
+    "pytubefix.helpers.safe_filename",
+    side_effect=lambda s, max_length: s.replace(" ", "_")[:max_length],
+)
+@patch("os.makedirs")
 def test_run_playlist_download_success(
-    mock_os_makedirs, mock_safe_filename, mock_download_videos_from_list,
-    downloader_instance, mock_playlist_object, caplog
+    mock_os_makedirs,
+    mock_safe_filename,
+    mock_download_videos_from_list,
+    downloader_instance,
+    mock_playlist_object,
+    caplog,
 ):
     downloader_instance.enable_playlist_download = True
     downloader_instance.playlist_urls = ["http://test.com/playlist"]
@@ -1753,10 +1985,14 @@ def test_run_playlist_download_success(
         downloader_instance.run()
         assert "Starting playlist downloads..." in caplog.text
         assert "Processing Playlist: My Awesome Playlist" in caplog.text
-        
+
         # Verify dynamic directory setting
-        expected_video_dir = os.path.join(downloader_instance.base_path, "My_Awesome_Playlist")
-        expected_audio_dir = os.path.join(downloader_instance.base_path, "My_Awesome_Playlist-Audio")
+        expected_video_dir = os.path.join(
+            downloader_instance.base_path, "My_Awesome_Playlist"
+        )
+        expected_audio_dir = os.path.join(
+            downloader_instance.base_path, "My_Awesome_Playlist-Audio"
+        )
         mock_os_makedirs.assert_any_call(expected_video_dir, exist_ok=True)
         mock_os_makedirs.assert_any_call(expected_audio_dir, exist_ok=True)
         assert f"Video destination: {expected_video_dir}" in caplog.text
@@ -1772,404 +2008,16 @@ def test_run_playlist_download_success(
     assert downloader_instance.audio_destination_directory == original_audio_dst
 
 
-def test_run_playlist_download_pytubefix_error(downloader_instance, mock_playlist_object, caplog):
-    downloader_instance.enable_playlist_download = True
-    downloader_instance.playlist_urls = ["http://invalid.playlist.com"]
-    mock_playlist_object.side_effect = RegexMatchError("Could not parse playlist URL")
-
-    with caplog.at_level(logging.ERROR):
-        downloader_instance.run()
-        assert "Unable to process Playlist http://invalid.playlist.com due to pytubefix error: Could not parse playlist URL" in caplog.text
-
-
-def test_move_local_files_to_destinations(downloader_instance, mock_filesystem):
-    # Simulate files existing in CWD
-    mock_filesystem["glob"].side_effect = [
-        ['file1.mp4', 'file2.mp4'], # for video_extension
-        ['audio1.mp3', 'audio2.mp3']  # for audio_extension
-    ]
-
-    # Ensure files don't exist in destination initially (for shutil.move)
-    mock_filesystem["exists"].return_value = False
-
-    downloader_instance._move_local_files_to_destinations()
-
-    assert mock_filesystem["move"].call_count == 4  # 2 videos + 2 audios
-    mock_filesystem["move"].assert_any_call('file1.mp4', os.path.join(downloader_instance.video_destination_directory, 'file1.mp4'))
-    mock_filesystem["move"].assert_any_call('audio1.mp3', os.path.join(downloader_instance.audio_destination_directory, 'audio1.mp3'))
-
-
-def test_remove_double_extension_videos(downloader_instance, mock_filesystem):
-    mock_filesystem["glob"].return_value = ['video.mp4.mp4']
-    mock_filesystem["exists"].return_value = True # Simulate file exists to be moved
-
-    downloader_instance._remove_double_extension_videos()
-
-    mock_filesystem["move"].assert_called_once_with(
-        'video.mp4.mp4', 'video.mp4'
-    )
-
-
-def test_compare_downloaded_audio_video_files_missing_audio(downloader_instance, mock_filesystem, caplog):
-    mock_filesystem["glob"].side_effect = [
-        ['video1.mp4', 'video2.mp4'], # videos
-        ['video1.mp3'] # audios
-    ]
-
-    with caplog.at_level(logging.WARNING):
-        downloader_instance._compare_downloaded_audio_video_files()
-        assert "Video file 'video2' in" in caplog.text
-        assert "has no matching audio file." in caplog.text
-
-
-@patch('pytubefix.helpers.safe_filename', side_effect=lambda s, max_length: s.replace(' ', '_'))
-def test_compare_playlist_downloads_missing_video(
-    mock_safe_filename, downloader_instance, mock_playlist_object, mock_filesystem, caplog
-):
-    downloader_instance.playlist_urls = ["http://test.com/playlist"]
-    mock_playlist_object.title = "Test Playlist"
-    mock_playlist_object.videos = [
-        MagicMock(title="Video 1"),
-        MagicMock(title="Video 2")
-    ]
-
-    # Mock glob for downloaded files
-    mock_filesystem["glob"].side_effect = [
-        [f'{downloader_instance.base_path}Test_Playlist/Video_1.mp4'], # Downloaded videos
-        [f'{downloader_instance.base_path}Test_Playlist-Audio/Video_1.mp3'] # Downloaded audios
-    ]
-
-    with caplog.at_level(logging.INFO):
-        downloader_instance._compare_playlist_downloads()
-        assert "Missing file detected in playlist 'Test Playlist': original_title='Video 2', comparable_title='Video_2'" in caplog.text
-        assert "Total missing files found for playlist 'Test Playlist': 1" in caplog.text
-
-
-@patch('pytubefix.helpers.safe_filename', side_effect=lambda s, max_length: s.replace(' ', '_'))
-def test_find_duplicated_titles_in_playlists(mock_safe_filename, downloader_instance, mock_playlist_object, caplog):
-    downloader_instance.playlist_urls = ["http://test.com/playlist"]
-    mock_playlist_object.title = "Test Playlist"
-    mock_playlist_object.videos = [
-        MagicMock(title="Duplicate Video"),
-        MagicMock(title="Unique Video"),
-        MagicMock(title="Duplicate Video")
-    ]
-
-    with caplog.at_level(logging.WARNING):
-        duplicates = downloader_instance._find_duplicated_titles_in_playlists()
-        assert "Found duplicated titles in playlist 'Test Playlist'!!!" in caplog.text
-        assert "Duplicated: Duplicate Video" in caplog.text
-        assert "Duplicate Video" in duplicates
-        assert len(duplicates) == 1 # Only one original title is duplicated
-
-
-@patch('test_youtube_downloader.YouTubeDownloader._download_videos_from_list')
-@patch('pytubefix.helpers.safe_filename', side_effect=lambda s, max_length: s.replace(' ', '_')[:max_length])
-@patch('os.makedirs')
-def test_run_playlist_download_success(
-    mock_os_makedirs, mock_safe_filename, mock_download_videos_from_list,
+def test_run_playlist_download_pytubefix_error(
     downloader_instance, mock_playlist_object, caplog
 ):
     downloader_instance.enable_playlist_download = True
-    downloader_instance.playlist_urls = ["http://test.com/playlist"]
-    mock_playlist_object.title = "My Awesome Playlist"
-    mock_video1 = MagicMock(title="Playlist Video 1", watch_url="http://test.com/plv1")
-    mock_video2 = MagicMock(title="Playlist Video 2", watch_url="http://test.com/plv2")
-    mock_playlist_object.videos = [mock_video1, mock_video2]
-
-    original_video_dst = downloader_instance.video_destination_directory
-    original_audio_dst = downloader_instance.audio_destination_directory
-
-    with caplog.at_level(logging.INFO):
-        downloader_instance.run()
-        assert "Starting playlist downloads..." in caplog.text
-        assert "Processing Playlist: My Awesome Playlist" in caplog.text
-        
-        # Verify dynamic directory setting
-        expected_video_dir = os.path.join(downloader_instance.base_path, "My_Awesome_Playlist")
-        expected_audio_dir = os.path.join(downloader_instance.base_path, "My_Awesome_Playlist-Audio")
-        mock_os_makedirs.assert_any_call(expected_video_dir, exist_ok=True)
-        mock_os_makedirs.assert_any_call(expected_audio_dir, exist_ok=True)
-        assert f"Video destination: {expected_video_dir}" in caplog.text
-        assert f"Audio destination: {expected_audio_dir}" in caplog.text
-
-        # Verify _download_videos_from_list was called with playlist videos
-        mock_download_videos_from_list.call_count == 2
-        mock_download_videos_from_list.assert_any_call(mock_video1.watch_url)
-        mock_download_videos_from_list.assert_any_call(mock_video2.watch_url)
-
-    # Verify original DST paths are restored
-    assert downloader_instance.video_destination_directory == original_video_dst
-    assert downloader_instance.audio_destination_directory == original_audio_dst
-
-
-def test_run_playlist_download_pytubefix_error(downloader_instance, mock_playlist_object, caplog):
-    downloader_instance.enable_playlist_download = True
     downloader_instance.playlist_urls = ["http://invalid.playlist.com"]
     mock_playlist_object.side_effect = RegexMatchError("Could not parse playlist URL")
 
     with caplog.at_level(logging.ERROR):
         downloader_instance.run()
-        assert "Unable to process Playlist http://invalid.playlist.com due to pytubefix error: Could not parse playlist URL" in caplog.text
-
-
-def test_move_local_files_to_destinations(downloader_instance, mock_filesystem):
-    # Simulate files existing in CWD
-    mock_filesystem["glob"].side_effect = [
-        ['file1.mp4', 'file2.mp4'], # for video_extension
-        ['audio1.mp3', 'audio2.mp3']  # for audio_extension
-    ]
-
-    # Ensure files don't exist in destination initially (for shutil.move)
-    mock_filesystem["exists"].return_value = False
-
-    downloader_instance._move_local_files_to_destinations()
-
-    assert mock_filesystem["move"].call_count == 4  # 2 videos + 2 audios
-    mock_filesystem["move"].assert_any_call('file1.mp4', os.path.join(downloader_instance.video_destination_directory, 'file1.mp4'))
-    mock_filesystem["move"].assert_any_call('audio1.mp3', os.path.join(downloader_instance.audio_destination_directory, 'audio1.mp3'))
-
-
-def test_remove_double_extension_videos(downloader_instance, mock_filesystem):
-    mock_filesystem["glob"].return_value = ['video.mp4.mp4']
-    mock_filesystem["exists"].return_value = True # Simulate file exists to be moved
-
-    downloader_instance._remove_double_extension_videos()
-
-    mock_filesystem["move"].assert_called_once_with(
-        'video.mp4.mp4', 'video.mp4'
-    )
-
-
-def test_compare_downloaded_audio_video_files_missing_audio(downloader_instance, mock_filesystem, caplog):
-    mock_filesystem["glob"].side_effect = [
-        ['video1.mp4', 'video2.mp4'], # videos
-        ['video1.mp3'] # audios
-    ]
-
-    with caplog.at_level(logging.WARNING):
-        downloader_instance._compare_downloaded_audio_video_files()
-        assert "Video file 'video2' in" in caplog.text
-        assert "has no matching audio file." in caplog.text
-
-
-@patch('pytubefix.helpers.safe_filename', side_effect=lambda s, max_length: s.replace(' ', '_'))
-def test_compare_playlist_downloads_missing_video(
-    mock_safe_filename, downloader_instance, mock_playlist_object, mock_filesystem, caplog
-):
-    downloader_instance.playlist_urls = ["http://test.com/playlist"]
-    mock_playlist_object.title = "Test Playlist"
-    mock_playlist_object.videos = [
-        MagicMock(title="Video 1"),
-        MagicMock(title="Video 2")
-    ]
-
-    # Mock glob for downloaded files
-    mock_filesystem["glob"].side_effect = [
-        [f'{downloader_instance.base_path}Test_Playlist/Video_1.mp4'], # Downloaded videos
-        [f'{downloader_instance.base_path}Test_Playlist-Audio/Video_1.mp3'] # Downloaded audios
-    ]
-
-    with caplog.at_level(logging.INFO):
-        downloader_instance._compare_playlist_downloads()
-        assert "Missing file detected in playlist 'Test Playlist': original_title='Video 2', comparable_title='Video_2'" in caplog.text
-        assert "Total missing files found for playlist 'Test Playlist': 1" in caplog.text
-
-
-@patch('pytubefix.helpers.safe_filename', side_effect=lambda s, max_length: s.replace(' ', '_'))
-def test_find_duplicated_titles_in_playlists(mock_safe_filename, downloader_instance, mock_playlist_object, caplog):
-    downloader_instance.playlist_urls = ["http://test.com/playlist"]
-    mock_playlist_object.title = "Test Playlist"
-    mock_playlist_object.videos = [
-        MagicMock(title="Duplicate Video"),
-        MagicMock(title="Unique Video"),
-        MagicMock(title="Duplicate Video")
-    ]
-
-    with caplog.at_level(logging.WARNING):
-        duplicates = downloader_instance._find_duplicated_titles_in_playlists()
-        assert "Found duplicated titles in playlist 'Test Playlist'!!!" in caplog.text
-        assert "Duplicated: Duplicate Video" in caplog.text
-        assert "Duplicate Video" in duplicates
-        assert len(duplicates) == 1 # Only one original title is duplicated
-
-
-@patch('test_youtube_downloader.YouTubeDownloader._download_videos_from_list')
-@patch('pytubefix.helpers.safe_filename', side_effect=lambda s, max_length: s.replace(' ', '_')[:max_length])
-@patch('os.makedirs')
-def test_run_playlist_download_success(
-    mock_os_makedirs, mock_safe_filename, mock_download_videos_from_list,
-    downloader_instance, mock_playlist_object, caplog
-):
-    downloader_instance.enable_playlist_download = True
-    downloader_instance.playlist_urls = ["http://test.com/playlist"]
-    mock_playlist_object.title = "My Awesome Playlist"
-    mock_video1 = MagicMock(title="Playlist Video 1", watch_url="http://test.com/plv1")
-    mock_video2 = MagicMock(title="Playlist Video 2", watch_url="http://test.com/plv2")
-    mock_playlist_object.videos = [mock_video1, mock_video2]
-
-    original_video_dst = downloader_instance.video_destination_directory
-    original_audio_dst = downloader_instance.audio_destination_directory
-
-    with caplog.at_level(logging.INFO):
-        downloader_instance.run()
-        assert "Starting playlist downloads..." in caplog.text
-        assert "Processing Playlist: My Awesome Playlist" in caplog.text
-        
-        # Verify dynamic directory setting
-        expected_video_dir = os.path.join(downloader_instance.base_path, "My_Awesome_Playlist")
-        expected_audio_dir = os.path.join(downloader_instance.base_path, "My_Awesome_Playlist-Audio")
-        mock_os_makedirs.assert_any_call(expected_video_dir, exist_ok=True)
-        mock_os_makedirs.assert_any_call(expected_audio_dir, exist_ok=True)
-        assert f"Video destination: {expected_video_dir}" in caplog.text
-        assert f"Audio destination: {expected_audio_dir}" in caplog.text
-
-        # Verify _download_videos_from_list was called with playlist videos
-        mock_download_videos_from_list.call_count == 2
-        mock_download_videos_from_list.assert_any_call(mock_video1.watch_url)
-        mock_download_videos_from_list.assert_any_call(mock_video2.watch_url)
-
-    # Verify original DST paths are restored
-    assert downloader_instance.video_destination_directory == original_video_dst
-    assert downloader_instance.audio_destination_directory == original_audio_dst
-
-
-def test_run_playlist_download_pytubefix_error(downloader_instance, mock_playlist_object, caplog):
-    downloader_instance.enable_playlist_download = True
-    downloader_instance.playlist_urls = ["http://invalid.playlist.com"]
-    mock_playlist_object.side_effect = RegexMatchError("Could not parse playlist URL")
-
-    with caplog.at_level(logging.ERROR):
-        downloader_instance.run()
-        assert "Unable to process Playlist http://invalid.playlist.com due to pytubefix error: Could not parse playlist URL" in caplog.text
-
-
-def test_move_local_files_to_destinations(downloader_instance, mock_filesystem):
-    # Simulate files existing in CWD
-    mock_filesystem["glob"].side_effect = [
-        ['file1.mp4', 'file2.mp4'], # for video_extension
-        ['audio1.mp3', 'audio2.mp3']  # for audio_extension
-    ]
-
-    # Ensure files don't exist in destination initially (for shutil.move)
-    mock_filesystem["exists"].return_value = False
-
-    downloader_instance._move_local_files_to_destinations()
-
-    assert mock_filesystem["move"].call_count == 4  # 2 videos + 2 audios
-    mock_filesystem["move"].assert_any_call('file1.mp4', os.path.join(downloader_instance.video_destination_directory, 'file1.mp4'))
-    mock_filesystem["move"].assert_any_call('audio1.mp3', os.path.join(downloader_instance.audio_destination_directory, 'audio1.mp3'))
-
-
-def test_remove_double_extension_videos(downloader_instance, mock_filesystem):
-    mock_filesystem["glob"].return_value = ['video.mp4.mp4']
-    mock_filesystem["exists"].return_value = True # Simulate file exists to be moved
-
-    downloader_instance._remove_double_extension_videos()
-
-    mock_filesystem["move"].assert_called_once_with(
-        'video.mp4.mp4', 'video.mp4'
-    )
-
-
-def test_compare_downloaded_audio_video_files_missing_audio(downloader_instance, mock_filesystem, caplog):
-    mock_filesystem["glob"].side_effect = [
-        ['video1.mp4', 'video2.mp4'], # videos
-        ['video1.mp3'] # audios
-    ]
-
-    with caplog.at_level(logging.WARNING):
-        downloader_instance._compare_downloaded_audio_video_files()
-        assert "Video file 'video2' in" in caplog.text
-        assert "has no matching audio file." in caplog.text
-
-
-@patch('pytubefix.helpers.safe_filename', side_effect=lambda s, max_length: s.replace(' ', '_'))
-def test_compare_playlist_downloads_missing_video(
-    mock_safe_filename, downloader_instance, mock_playlist_object, mock_filesystem, caplog
-):
-    downloader_instance.playlist_urls = ["http://test.com/playlist"]
-    mock_playlist_object.title = "Test Playlist"
-    mock_playlist_object.videos = [
-        MagicMock(title="Video 1"),
-        MagicMock(title="Video 2")
-    ]
-
-    # Mock glob for downloaded files
-    mock_filesystem["glob"].side_effect = [
-        [f'{downloader_instance.base_path}Test_Playlist/Video_1.mp4'], # Downloaded videos
-        [f'{downloader_instance.base_path}Test_Playlist-Audio/Video_1.mp3'] # Downloaded audios
-    ]
-
-    with caplog.at_level(logging.INFO):
-        downloader_instance._compare_playlist_downloads()
-        assert "Missing file detected in playlist 'Test Playlist': original_title='Video 2', comparable_title='Video_2'" in caplog.text
-        assert "Total missing files found for playlist 'Test Playlist': 1" in caplog.text
-
-
-@patch('pytubefix.helpers.safe_filename', side_effect=lambda s, max_length: s.replace(' ', '_'))
-def test_find_duplicated_titles_in_playlists(mock_safe_filename, downloader_instance, mock_playlist_object, caplog):
-    downloader_instance.playlist_urls = ["http://test.com/playlist"]
-    mock_playlist_object.title = "Test Playlist"
-    mock_playlist_object.videos = [
-        MagicMock(title="Duplicate Video"),
-        MagicMock(title="Unique Video"),
-        MagicMock(title="Duplicate Video")
-    ]
-
-    with caplog.at_level(logging.WARNING):
-        duplicates = downloader_instance._find_duplicated_titles_in_playlists()
-        assert "Found duplicated titles in playlist 'Test Playlist'!!!" in caplog.text
-        assert "Duplicated: Duplicate Video" in caplog.text
-        assert "Duplicate Video" in duplicates
-        assert len(duplicates) == 1 # Only one original title is duplicated
-
-
-@patch('test_youtube_downloader.YouTubeDownloader._download_videos_from_list')
-@patch('pytubefix.helpers.safe_filename', side_effect=lambda s, max_length: s.replace(' ', '_')[:max_length])
-@patch('os.makedirs')
-def test_run_playlist_download_success(
-    mock_os_makedirs, mock_safe_filename, mock_download_videos_from_list,
-    downloader_instance, mock_playlist_object, caplog
-):
-    downloader_instance.enable_playlist_download = True
-    downloader_instance.playlist_urls = ["http://test.com/playlist"]
-    mock_playlist_object.title = "My Awesome Playlist"
-    mock_video1 = MagicMock(title="Playlist Video 1", watch_url="http://test.com/plv1")
-    mock_video2 = MagicMock(title="Playlist Video 2", watch_url="http://test.com/plv2")
-    mock_playlist_object.videos = [mock_video1, mock_video2]
-
-    original_video_dst = downloader_instance.video_destination_directory
-    original_audio_dst = downloader_instance.audio_destination_directory
-
-    with caplog.at_level(logging.INFO):
-        downloader_instance.run()
-        assert "Starting playlist downloads..." in caplog.text
-        assert "Processing Playlist: My Awesome Playlist" in caplog.text
-        
-        # Verify dynamic directory setting
-        expected_video_dir = os.path.join(downloader_instance.base_path, "My_Awesome_Playlist")
-        expected_audio_dir = os.path.join(downloader_instance.base_path, "My_Awesome_Playlist-Audio")
-        mock_os_makedirs.assert_any_call(expected_video_dir, exist_ok=True)
-        mock_os_makedirs.assert_any_call(expected_audio_dir, exist_ok=True)
-        assert f"Video destination: {expected_video_dir}" in caplog.text
-        assert f"Audio destination: {expected_audio_dir}" in caplog.text
-
-        # Verify _download_videos_from_list was called with playlist videos
-        mock_download_videos_from_list.call_count == 2
-        mock_download_videos_from_list.assert_any_call(mock_video1.watch_url)
-        mock_download_videos_from_list.assert_any_call(mock_video2.watch_url)
-
-    # Verify original DST paths are restored
-    assert downloader_instance.video_destination_directory == original_video_dst
-    assert downloader_instance.audio_destination_directory == original_audio_dst
-
-
-def test_run_playlist_download_pytubefix_error(downloader_instance, mock_playlist_object, caplog):
-    downloader_instance.enable_playlist_download = True
-    downloader_instance.playlist_urls = ["http://invalid.playlist.com"]
-    mock_playlist_object.side_effect = RegexMatchError("Could not parse playlist URL")
-
-    with caplog.at_level(logging.ERROR):
-        downloader_instance.run()
-        assert "Unable to process Playlist http://invalid.playlist.com due to pytubefix error: Could not parse playlist URL" in caplog.text
+        assert (
+            "Unable to process Playlist http://invalid.playlist.com due to pytubefix error: Could not parse playlist URL"
+            in caplog.text
+        )
