@@ -26,11 +26,11 @@ from pytubefix.exceptions import (
     ExtractError,
 )
 
-LOGGING_LEVEL = logging.DEBUG
+LOGGING_LEVEL = logging.INFO
 DOWNLOAD_CAPTIONS = True
-DOWNLOAD_VIDEO = False
+DOWNLOAD_VIDEO = True
 DOWNLOAD_AUDIO = True
-RECOVERT_MEDIA = False
+RECOVERT_MEDIA = True
 
 PLAYLIST_DOWNLOAD = True
 CHANNEL_DOWNLOAD = False
@@ -158,6 +158,8 @@ class YouTubeDownloader:
         self.task_manager = YouTubeTaskManager(
             video_dst_dir=self.video_destination_directory,
             audio_dst_dir=self.audio_destination_directory,
+            video_extension=self.video_extension,
+            audio_extension=self.audio_extension,
         )
 
         # Apply retry decorator to download function
@@ -169,7 +171,6 @@ class YouTubeDownloader:
         # and search queries --- #
         self.video_urls = [
             # Example video URLs (commented out)
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             # "https://www.youtube.com/watch?v=zb3nAoJJGYo",
             # "https://www.youtube.com/watch?v=BmtYHnvQcqw",
             # "https://www.youtube.com/watch?v=6F-fAlGA0q0&list=PLf8MTi2c_8X-TLNg6tAjLaeb0jvmSQoX5",
@@ -428,7 +429,7 @@ class YouTubeDownloader:
             if task:
                 self.task_manager.update_task(youtube_id, {'status': 'failed', 'error_message': str(e)})
             raise e
-        
+
         if not task:
             task = self.task_manager.add_task(url, yt.title, self.max_file_length)
             if not task:
@@ -444,9 +445,11 @@ class YouTubeDownloader:
             self.task_manager.update_task(youtube_id, {'status': 'completed', 'error_message': 'Dry run'})
             return True
 
-        # Generate a safe filename from the video title
-        filename_base = task['final_filename_on_disk']
-        video_full_filename = f"{filename_base}.{self.video_extension}"
+        # Get final filenames from the task
+        video_full_filename = task['final_video_filename']
+        audio_full_filename_with_ext = task['final_audio_filename'] # This is the target filename with .mp3 or similar
+        audio_filename_base_for_mime = os.path.splitext(audio_full_filename_with_ext)[0]
+
 
         # Download captions if enabled
         if self.download_captions:
@@ -549,10 +552,9 @@ class YouTubeDownloader:
                     f"skipping video download."
                 )
 
-        audio_full_filename = f"{filename_base}.{self.audio_extension}"
-        original_audio_filename = f"{filename_base}.{self.audio_mime_type}"
+        original_audio_filename = f"{audio_filename_base_for_mime}.{self.audio_mime_type}"
         remote_audio_filepath = os.path.join(
-            self.audio_destination_directory, audio_full_filename
+            self.audio_destination_directory, audio_full_filename_with_ext
         )
         temp_audio_filepath = os.path.join(
             temp_download_folder, original_audio_filename
@@ -700,7 +702,7 @@ class YouTubeDownloader:
             and os.path.exists(remote_audio_filepath)
         ):
             merged_video_temp_filename = (
-                f"{filename_base}_merged.{self.video_extension}"
+                f"{audio_filename_base_for_mime}_merged.{self.video_extension}"
             )
             final_video_filepath_after_merge = os.path.join(
                 self.video_destination_directory, video_full_filename
@@ -764,7 +766,6 @@ class YouTubeDownloader:
                         temp_download_folder, "_temp_audio.m4a"
                     ),
                     remove_temp=True,  # Remove temporary audio file created by moviepy
-                    logger=self.logger,  # Pass custom logger to moviepy
                 )
                 self.logger.info("Video and audio merged successfully.")
 
@@ -852,7 +853,63 @@ class YouTubeDownloader:
                 )
                 continue
 
-            self.logger.info(f"Downloading video {video_url} [{i + 1}/{len(videos)}]")
+            youtube_id = self.task_manager._extract_youtube_id(video_url)
+            if not youtube_id:
+                self.logger.error(f"Could not extract YouTube ID from URL: {video_url}")
+                continue
+
+            task = self.task_manager.get_task(youtube_id)
+
+            try:
+                yt = YouTube(video_url)
+                video_title = yt.title
+                
+                # If no task exists, create one to get the definitive filenames
+                if not task:
+                    task = self.task_manager.add_task(video_url, video_title, self.max_file_length)
+                    if not task: # Should not happen if add_task works, but for safety
+                        self.logger.error(f"Failed to add task for {video_url}. Skipping.")
+                        continue
+
+                video_full_filename = task['final_video_filename']
+                audio_full_filename = task['final_audio_filename']
+
+                remote_video_filepath = os.path.join(self.video_destination_directory, video_full_filename)
+                remote_audio_filepath = os.path.join(self.audio_destination_directory, audio_full_filename)
+
+                video_exists = os.path.exists(remote_video_filepath)
+                audio_exists = os.path.exists(remote_audio_filepath)
+
+                # Determine if we should skip based on what we want to download and what already exists.
+                should_skip = False
+                if self.download_video and self.download_audio:
+                    if video_exists and audio_exists:
+                        should_skip = True
+                elif self.download_video:
+                    if video_exists:
+                        should_skip = True
+                elif self.download_audio:
+                    if audio_exists:
+                        should_skip = True
+                
+                if should_skip:
+                    self.logger.info(f"Required file(s) for '{video_title}' already exist on disk. Updating status to 'completed'.")
+                    self.task_manager.update_task(youtube_id, {'status': 'completed'})
+                    continue
+                else:
+                    # If files don't exist, ensure task is pending if it exists, or it was just added as pending
+                    self.task_manager.update_task(youtube_id, {'status': 'pending'})
+
+            except Exception as e:
+                self.logger.error(f"Could not perform pre-check for {video_url}: {e}")
+                # If pre-check fails, log and continue to the download attempt in case it's a transient error
+                # and _download_youtube_video can handle it or log a more specific error
+                # Also ensure the task status is marked as failed if it's already in the DB
+                if task:
+                    self.task_manager.update_task(youtube_id, {'status': 'failed', 'error_message': f"Pre-check failed: {e}"})
+
+
+            self.logger.info(f"Processing video {video_url} [{i + 1}/{len(videos)}]")
             try:
                 self._download_youtube_video(video_url)
             except BotDetection as e:
@@ -1345,11 +1402,13 @@ class YouTubeDownloader:
 class YouTubeTaskManager:
     """Manages YouTube video download tasks and their metadata in an SQLite database."""
 
-    def __init__(self, db_name='youtube_tasks.db', video_dst_dir=None, audio_dst_dir=None):
+    def __init__(self, db_name='youtube_tasks.db', video_dst_dir=None, audio_dst_dir=None, video_extension='mp4', audio_extension='mp3'):
         """Initializes the database connection and creates the tasks table if it doesn't exist."""
         self.db_name = db_name
         self.video_destination_directory = video_dst_dir
         self.audio_destination_directory = audio_dst_dir
+        self.video_extension = video_extension
+        self.audio_extension = audio_extension
         self.conn = None
         self.cursor = None
         self._connect()
@@ -1374,7 +1433,8 @@ class YouTubeTaskManager:
                     youtube_id TEXT NOT NULL UNIQUE,
                     video_url TEXT NOT NULL,
                     suggested_filename_base TEXT,
-                    final_filename_on_disk TEXT UNIQUE,
+                    final_video_filename TEXT,
+                    final_audio_filename TEXT,
                     status TEXT DEFAULT 'pending',
                     video_filepath TEXT,
                     audio_filepath TEXT,
@@ -1456,10 +1516,10 @@ class YouTubeTaskManager:
         
         base_name_for_uniqueness = suggested_filename_base
         counter = 0
-        final_filename_on_disk = suggested_filename_base
+        final_filename_base = suggested_filename_base
 
         # Check for filename collisions (on disk and in DB)
-        while self._filename_collision_exists(final_filename_on_disk):
+        while self._filename_collision_exists(final_filename_base):
             counter += 1
             # Recalculate candidate filename for uniqueness
             suffix = f"_{counter}"
@@ -1467,9 +1527,9 @@ class YouTubeTaskManager:
             if len(base_name_for_uniqueness) + len(suffix) > max_file_length:
                 # Truncate original base name to make space for the suffix
                 truncated_base = base_name_for_uniqueness[:max_file_length - len(suffix)]
-                final_filename_on_disk = f"{truncated_base}{suffix}"
+                final_filename_base = f"{truncated_base}{suffix}"
             else:
-                final_filename_on_disk = f"{base_name_for_uniqueness}{suffix}"
+                final_filename_base = f"{base_name_for_uniqueness}{suffix}"
 
             if counter > 999: # Arbitrary high counter, if it still collides, give up to prevent infinite loop
                 logging.warning(f"Could not generate unique filename for {video_title} within max_file_length {max_file_length} after many attempts. Skipping.")
@@ -1479,21 +1539,22 @@ class YouTubeTaskManager:
         try:
             self.cursor.execute(
                 '''INSERT INTO tasks (
-                    youtube_id, video_url, suggested_filename_base, final_filename_on_disk, 
+                    youtube_id, video_url, suggested_filename_base, final_video_filename, final_audio_filename, 
                     status, added_date, last_updated_date
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
                 (
                     youtube_id,
                     video_url,
                     suggested_filename_base,
-                    final_filename_on_disk,
+                    f"{final_filename_base}.{self.video_extension}",
+                    f"{final_filename_base}.{self.audio_extension}",
                     'pending',
                     current_time,
                     current_time,
                 ),
             )
             self.conn.commit()
-            logging.info(f"Task added: {video_title} with unique filename {final_filename_on_disk}")
+            logging.info(f"Task added: {video_title} with unique filename base {final_filename_base}")
             return self.get_task(youtube_id)
         except sqlite3.IntegrityError as e:
             logging.error(f"Database integrity error when adding task for {video_url}: {e}")
@@ -1507,21 +1568,20 @@ class YouTubeTaskManager:
         # Check on disk (for both video and audio extensions)
         video_exists = False
         if self.video_destination_directory:
-            video_exists = os.path.exists(os.path.join(self.video_destination_directory, f"{filename_base}.mp4"))
+            video_exists = os.path.exists(os.path.join(self.video_destination_directory, f"{filename_base}.{self.video_extension}"))
 
         audio_exists = False
         if self.audio_destination_directory:
-            audio_exists = os.path.exists(os.path.join(self.audio_destination_directory, f"{filename_base}.mp3"))
+            audio_exists = os.path.exists(os.path.join(self.audio_destination_directory, f"{filename_base}.{self.audio_extension}"))
 
         if video_exists or audio_exists:
             return True
 
         # Check in database (for final_filename_on_disk)
-        self.cursor.execute('SELECT 1 FROM tasks WHERE final_filename_on_disk = ?', (filename_base,))
+        self.cursor.execute('SELECT 1 FROM tasks WHERE final_video_filename = ? OR final_audio_filename = ?', (f"{filename_base}.{self.video_extension}", f"{filename_base}.{self.audio_extension}"))
         if self.cursor.fetchone() is not None:
             return True
         return False
-
     def close(self):
         """Closes the database connection."""
         if self.conn:
