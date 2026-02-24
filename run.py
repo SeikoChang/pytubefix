@@ -736,8 +736,8 @@ class YouTubeDownloader:
         # Merge video/audio if reconvert is enabled and both video and audio are present
         if (
             self.reconvert_media
-            and self.download_video
-            and self.download_audio
+            # and self.download_video
+            # and self.download_audio
             and os.path.exists(remote_video_filepath)
             and os.path.exists(remote_audio_filepath)
         ):
@@ -886,7 +886,7 @@ class YouTubeDownloader:
 
         return True
 
-    def _download_videos_from_list(self, videos: list) -> None:
+    def _preprocess_videos_from_list(self, videos: list) -> None:
         """Iterates through a list of video URLs or YouTube objects and
         downloads each one.
 
@@ -946,15 +946,16 @@ class YouTubeDownloader:
 
                 # Determine if we should skip based on what we want to download and what already exists.
                 should_skip = False
-                if self.download_video and self.download_audio:
-                    if video_exists and audio_exists:
-                        should_skip = True
-                elif self.download_video:
-                    if video_exists:
-                        should_skip = True
-                elif self.download_audio:
-                    if audio_exists:
-                        should_skip = True
+                if not self.reconvert_media:
+                    if self.download_video and self.download_audio:
+                        if video_exists and audio_exists:
+                            should_skip = True
+                    elif self.download_video:
+                        if video_exists:
+                            should_skip = True
+                    elif self.download_audio:
+                        if audio_exists:
+                            should_skip = True
 
                 if should_skip:
                     self.logger.info(
@@ -1356,7 +1357,7 @@ class YouTubeDownloader:
         destination paths for playlists.
         """
         self.logger.info("Starting individual video downloads...")
-        self._download_videos_from_list(self.video_urls)
+        self._preprocess_videos_from_list(self.video_urls)
 
         if self.enable_playlist_download:
             self.logger.info("Starting playlist downloads...")
@@ -1385,7 +1386,7 @@ class YouTubeDownloader:
                         f"Video destination: {self.video_destination_directory}, "
                         f"Audio destination: {self.audio_destination_directory}"
                     )
-                    self._download_videos_from_list(playlist.videos)
+                    self._preprocess_videos_from_list(playlist.videos)
                 except (
                     RegexMatchError,
                     VideoUnavailable,
@@ -1412,7 +1413,7 @@ class YouTubeDownloader:
                 try:
                     channel = Channel(channel_url)
                     self.logger.info(f"Processing Channel: {channel.channel_name}")
-                    self._download_videos_from_list(channel.videos)
+                    self._preprocess_videos_from_list(channel.videos)
                 except (
                     RegexMatchError,
                     VideoUnavailable,
@@ -1449,7 +1450,7 @@ class YouTubeDownloader:
                         self.logger.info(f"Search result URL: {video.watch_url}")
                         self.logger.info(f"Search result Duration: {video.length} sec")
                         self.logger.info("---")
-                        self._download_videos_from_list([video])
+                        self._preprocess_videos_from_list([video])
                 except (
                     RegexMatchError,
                     VideoUnavailable,
