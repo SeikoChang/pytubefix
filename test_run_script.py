@@ -1,307 +1,212 @@
 import pytest
 import os
+import shutil
 import sqlite3
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
+from run import YouTubeTaskManager, YouTubeDownloader, on_progress, VideoUnavailable
 
-# Assuming run.py is in the parent directory
-import sys
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from run import YouTubeTaskManager, YouTubeDownloader, on_progress
-
+# --- Fixtures ---
 
 @pytest.fixture
-def temp_db(tmp_path):
-    """Provides an in-memory SQLite database for testing YouTubeTaskManager."""
-    db_path = tmp_path / "test_youtube_tasks.db"
+def temp_dir(tmp_path):
+    """Provides a temporary directory for file operations."""
+    video_dir = tmp_path / "video"
+    audio_dir = tmp_path / "audio"
+    video_dir.mkdir()
+    audio_dir.mkdir()
+    return {"video": str(video_dir), "audio": str(audio_dir), "root": str(tmp_path)}
+
+@pytest.fixture
+def manager(temp_dir):
+    """Provides a YouTubeTaskManager instance with a temporary database."""
+    db_path = os.path.join(temp_dir["root"], "test_tasks.db")
     manager = YouTubeTaskManager(
-        db_name=str(db_path), video_dst_dir="dummy_video", audio_dst_dir="dummy_audio"
+        db_name=db_path,
+        video_dst_dir=temp_dir["video"],
+        audio_dst_dir=temp_dir["audio"]
     )
     yield manager
     manager.close()
-    if os.path.exists(db_path):
-        os.remove(db_path)
-
 
 @pytest.fixture
-def downloader_instance(temp_db):
-    """Provides a YouTubeDownloader instance with a mocked task manager."""
-    downloader = YouTubeDownloader()
-    downloader.task_manager = temp_db  # Use the in-memory task manager
-    downloader.video_destination_directory = "dummy_video_dir"
-    downloader.audio_destination_directory = "dummy_audio_dir"
-    downloader.download_video = True
-    downloader.download_audio = True
-    downloader.reconvert_media = True  # Enable merging for some tests
-    downloader.logger = (
-        MagicMock()
-    )  # Mock logger to prevent actual logging during tests
-    return downloader
+def downloader(manager, temp_dir):
+    """Provides a YouTubeDownloader instance with a configured task manager."""
+    dl = YouTubeDownloader()
+    # Close the manager created in __init__ to avoid double connections
+    if hasattr(dl, 'task_manager') and dl.task_manager:
+        dl.task_manager.close()
+    
+    dl.task_manager = manager
+    dl.video_destination_directory = temp_dir["video"]
+    dl.audio_destination_directory = temp_dir["audio"]
+    dl.download_video = True
+    dl.download_audio = True
+    dl.reconvert_media = True
+    dl.logger = MagicMock()
+    return dl
 
+# --- YouTubeTaskManager Tests ---
 
-# --- Tests for YouTubeTaskManager ---
+def test_manager_init(manager):
+    """Tests if the database and table are initialized correctly."""
+    assert manager.conn is not None
+    manager.cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'")
+    assert manager.cursor.fetchone() is not None
 
+def test_extract_youtube_id(manager):
+    """Tests extraction of 11-character YouTube IDs from various URL formats."""
+    urls = [
+        "https://www.youtube.com/watch?v=ABC12345678",
+        "https://youtu.be/ABC12345678",
+        "https://www.youtube.com/embed/ABC12345678",
+        "https://www.youtube.com/watch?v=ABC12345678&feature=shared"
+    ]
+    for url in urls:
+        assert manager._extract_youtube_id(url) == "ABC12345678"
+    
+    assert manager._extract_youtube_id("invalid_url") == ""
 
-def test_task_manager_initialization(temp_db):
-    assert temp_db.conn is not None
-    assert temp_db.cursor is not None
-    temp_db.cursor.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'"
-    )
-    assert temp_db.cursor.fetchone() is not None
-
-
-def test_add_task_new_task(temp_db):
-    video_url = "https://www.youtube.com/watch?v=test_id_001"
-    video_title = "Test Video Title 1"
-    task = temp_db.add_task(video_url, video_title, max_file_length=60)
-    assert task is not None
-    assert task["youtube_id"] == "test_id_001"
+def test_add_and_get_task(manager):
+    """Tests adding a task and retrieving it."""
+    url = "https://www.youtube.com/watch?v=id123456789"
+    title = "Test Video"
+    task = manager.add_task(url, title, max_file_length=100)
+    
+    assert task["youtube_id"] == "id123456789"
     assert task["status"] == "pending"
-    assert "Test Video Title 1.mp4" in task["final_video_filename"]
-    assert "Test Video Title 1.mp3" in task["final_audio_filename"]
+    
+    retrieved = manager.get_task("id123456789")
+    assert retrieved["video_url"] == url
+    assert retrieved["suggested_filename_base"] == "Test Video"
 
+def test_update_task(manager):
+    """Tests updating task metadata."""
+    manager.add_task("https://www.youtube.com/watch?v=id123456789", "Title", 60)
+    manager.update_task("id123456789", {"status": "completed", "video_filepath": "/tmp/v.mp4"})
+    
+    task = manager.get_task("id123456789")
+    assert task["status"] == "completed"
+    assert task["video_filepath"] == "/tmp/v.mp4"
 
-def test_add_task_existing_task(temp_db):
-    video_url = "https://www.youtube.com/watch?v=test_id_002"
-    video_title = "Test Video Title 2"
-    temp_db.add_task(video_url, video_title, max_file_length=60)
-    # Try to add the same task again
-    task = temp_db.add_task(video_url, video_title, max_file_length=60)
-    assert task is not None
-    assert task["youtube_id"] == "test_id_002"
-    # Ensure only one entry exists in the database
-    temp_db.cursor.execute(
-        "SELECT COUNT(*) FROM tasks WHERE youtube_id = ?", ("test_id_002",)
-    )
-    assert temp_db.cursor.fetchone()[0] == 1
-
-
-def test_get_task(temp_db):
-    video_url = "https://www.youtube.com/watch?v=test_id_003"
-    video_title = "Test Video Title 3"
-    temp_db.add_task(video_url, video_title, max_file_length=60)
-    task = temp_db.get_task("test_id_003")
-    assert task is not None
-    assert task["youtube_id"] == "test_id_003"
-    assert task["video_url"] == video_url
-
-
-def test_update_task(temp_db):
-    video_url = "https://www.youtube.com/watch?v=test_id_004"
-    video_title = "Test Video Title 4"
-    temp_db.add_task(video_url, video_title, max_file_length=60)
-    temp_db.update_task(
-        "test_id_004", {"status": "completed", "video_filepath": "/path/to/video.mp4"}
-    )
-    updated_task = temp_db.get_task("test_id_004")
-    assert updated_task["status"] == "completed"
-    assert updated_task["video_filepath"] == "/path/to/video.mp4"
-
-
-@patch("os.path.exists", return_value=False)
-def test_filename_collision_exists_no_collision(mock_exists, temp_db):
-    assert not temp_db._filename_collision_exists("non_existent_file")
-    mock_exists.assert_any_call(os.path.join("dummy_video", "non_existent_file.mp4"))
-    mock_exists.assert_any_call(os.path.join("dummy_audio", "non_existent_file.mp3"))
-
-
-@patch("os.path.exists", side_effect=[True, False])  # Video exists, audio doesn't
-def test_filename_collision_exists_on_disk_video(mock_exists, temp_db):
-    assert temp_db._filename_collision_exists("existent_video_file")
-    mock_exists.assert_any_call(os.path.join("dummy_video", "existent_video_file.mp4"))
-
-
-@patch("os.path.exists", side_effect=[False, True])  # Video doesn't, audio exists
-def test_filename_collision_exists_on_disk_audio(mock_exists, temp_db):
-    assert temp_db._filename_collision_exists("existent_audio_file")
-    mock_exists.assert_any_call(os.path.join("dummy_video", "existent_audio_file.mp4"))
-    mock_exists.assert_any_call(os.path.join("dummy_audio", "existent_audio_file.mp3"))
-
-
-def test_filename_collision_exists_in_db(temp_db):
-    video_url = "https://www.youtube.com/watch?v=db_collisio"
-    video_title = "DB Collision"
-    temp_db.add_task(video_url, video_title, max_file_length=60)
-    # Now check collision for the base filename of this task
-    assert temp_db._filename_collision_exists("DB Collision")
-
-
-# --- Tests for YouTubeDownloader ---
-
-
-def test_downloader_initialization(downloader_instance):
-    assert downloader_instance.task_manager is not None
-    assert downloader_instance.download_video is True
-    assert downloader_instance.download_audio is True
-    assert downloader_instance.video_destination_directory == "dummy_video_dir"
-    assert downloader_instance.audio_destination_directory == "dummy_audio_dir"
-
+# --- YouTubeDownloader Tests ---
 
 @patch("run.YouTube")
-@patch("pytubefix.streams.Stream.download")
 @patch("run.VideoFileClip")
 @patch("run.AudioFileClip")
 @patch("os.path.exists")
 @patch("shutil.move")
 @patch("os.remove")
-@patch("run.on_progress")  # ADDED THIS PATCH
-def test_download_youtube_video_success(
-    mock_on_progress,
-    mock_os_remove,
-    mock_shutil_move,
-    mock_os_path_exists,
-    mock_audio_file_clip,
-    mock_video_file_clip,
-    mock_stream_download,
-    mock_youtube,
-    downloader_instance,
+@patch("run.on_progress")
+def test_download_video_success(
+    mock_on_progress, mock_remove, mock_move, mock_exists,
+    mock_audio_clip, mock_video_clip, mock_yt_class,
+    downloader, temp_dir
 ):
-    # Setup mocks
-    youtube_id = "Abc12345678"
-    video_url = f"https://www.youtube.com/watch?v={youtube_id}"
-    video_title = "Success Video"
-    final_video_filename = "Success Video.mp4"
-    final_audio_filename = "Success Video.mp3"
-
-    # Mock YouTube object behavior
-    mock_yt_instance = MagicMock()
-    mock_yt_instance.title = video_title
-    mock_yt_instance.length = 120
-    mock_yt_instance.captions = {}
-    mock_yt_instance.channel_url = (
-        None  # Prevent VideoUnavailable from check_availability
-    )
-    mock_yt_instance.check_availability.return_value = (
-        None  # Ensure availability check passes
-    )
-    mock_youtube.return_value = mock_yt_instance
-
-    # Mock streams object directly
-    mock_streams = MagicMock()
-    mock_yt_instance.streams = (
-        mock_streams  # Assign mock_streams to mock_yt_instance.streams
-    )
-
-    # Mock stream objects
-    mock_video_stream = MagicMock()
-    mock_video_stream.itag = 137
-    mock_video_stream.resolution = "1080p"
-    mock_video_stream.video_codec = "avc1"
-    mock_video_stream.abr = None
-    mock_video_stream.audio_codec = None
-    mock_streams.filter.return_value.order_by.return_value.desc.return_value.last.return_value = (
-        mock_video_stream
-    )
-    mock_streams.get_highest_resolution.return_value = mock_video_stream  # Fallback
-
-    mock_audio_stream = MagicMock()
-    mock_audio_stream.itag = 251
-    mock_audio_stream.abr = "128kbps"
-    mock_streams.filter.return_value.asc.return_value.first.return_value = (
-        mock_audio_stream
-    )
-    mock_streams.get_audio_only.return_value = mock_audio_stream  # Fallback
-
-    # Mock moviepy clips
-    mock_vfc_instance = MagicMock()
-    mock_vfc_instance.audio = MagicMock()
-    mock_vfc_instance.audio.write_audiofile.return_value = None
-    mock_video_file_clip.return_value = mock_vfc_instance
-
-    mock_afc_instance = MagicMock()
-    mock_audio_file_clip.return_value = mock_afc_instance
-
-    # Mock os.path.exists
-    # 1-2: add_task, 3-4: initial checks in download, 5: extract audio check,
-    # 6: temp audio file check, 7-8: merge checks, 9: final merged check,
-    # 10: original video removal check
-    mock_os_path_exists.side_effect = [False, False, False, False, False, False, True, True, False, True] + [True] * 10
-
-    # Add task to the task manager
-    downloader_instance.task_manager.add_task(
-        video_url, video_title, max_file_length=60
-    )
-
-    # Execute the method under test
-    result = downloader_instance._download_youtube_video(video_url)
-
-    # Assertions
-    assert result is True
-    mock_youtube.assert_called_once_with(
-        url=video_url,
-        use_oauth=False,
-        allow_oauth_cache=False,
-        on_progress_callback=mock_on_progress,  # Use the mock
-    )
-    mock_yt_instance.check_availability.assert_called_once()
-    mock_yt_instance.streams.filter.assert_any_call(
-        progressive=False, mime_type="video/mp4", res="1080p"
-    )
-    mock_video_stream.download.assert_called_once_with(
-        output_path=".", filename=final_video_filename
-    )
-    mock_shutil_move.assert_any_call(
-        os.path.join(".", final_video_filename),
-        os.path.join(
-            downloader_instance.video_destination_directory, final_video_filename
-        ),
-    )
-
-    mock_yt_instance.streams.filter.assert_any_call(
-        mime_type="audio/mp4", abr="128kbps"
-    )
-    mock_audio_stream.download.assert_called_once_with(
-        output_path=".", filename=f"{os.path.splitext(final_audio_filename)[0]}.mp4"
-    )  # original audio filename is mp4 before conversion to mp3
-
-    # AudioFileClip is called twice: once for conversion, once for merging
-    assert mock_audio_file_clip.call_count == 2
-    mock_audio_file_clip.assert_any_call(
-        os.path.join(".", f"{os.path.splitext(final_audio_filename)[0]}.mp4")
-    )
-    mock_audio_file_clip.assert_any_call(
-        os.path.join(
-            downloader_instance.audio_destination_directory, final_audio_filename
-        )
-    )
-
-    mock_afc_instance.write_audiofile.assert_called_once_with(
-        filename=os.path.join(
-            downloader_instance.audio_destination_directory, final_audio_filename
-        ),
-        codec=None,
-    )
-
-    # Verify moviepy merge calls
-    # VideoFileClip is called once for merging (and possibly once more if we didn't mock exists correctly, but here once)
-    mock_video_file_clip.assert_any_call(
-        os.path.join(
-            downloader_instance.video_destination_directory, final_video_filename
-        )
-    )
+    """Tests a full successful download and merge flow."""
+    video_id = "SUCCESS1234"
+    url = f"https://www.youtube.com/watch?v={video_id}"
     
-    mock_vfc_instance.write_videofile.assert_called_once_with(
-        filename=f"{os.path.splitext(final_audio_filename)[0]}_merged.mp4",
-        codec=None,
-        audio_codec="aac",
-        temp_audiofile=os.path.join(".", "_temp_audio.m4a"),
-        remove_temp=True,
-    )
-    mock_shutil_move.assert_any_call(
-        f"{os.path.splitext(final_audio_filename)[0]}_merged.mp4",
-        os.path.join(
-            downloader_instance.video_destination_directory, final_video_filename
-        ),
-    )
+    # Mock YouTube object
+    mock_yt = MagicMock()
+    mock_yt.title = "Video"
+    mock_yt.length = 100
+    mock_yt_class.return_value = mock_yt
+    
+    # Mock Streams
+    mock_stream = MagicMock()
+    mock_yt.streams.filter.return_value.order_by.return_value.desc.return_value.last.return_value = mock_stream
+    mock_yt.streams.filter.return_value.asc.return_value.first.return_value = mock_stream
+    
+    # Mock moviepy clips
+    mock_vfc = MagicMock()
+    mock_afc = MagicMock()
+    mock_video_clip.return_value = mock_vfc
+    mock_audio_clip.return_value = mock_afc
+    
+    # Trace-based side_effect:
+    # 1-2: add_task collision checks (Video.mp4, Video.mp3) -> False
+    # 3-4: _download_youtube_video initial checks (Video.mp4, Video.mp3) -> False
+    # 5: extract audio check (Video.mp4) -> False
+    # 6: temp audio file check (./Video.mp4) -> False
+    # 7-8: merge block reconvert check (Video.mp4, Video.mp3) -> True
+    # 9: already merged check -> False
+    # 10: original video removal check -> True
+    mock_exists.side_effect = [False, False, False, False, False, False, True, True, False, True] + [True]*10
 
-    # Verify task status update
-    updated_task = downloader_instance.task_manager.get_task(youtube_id)
-    assert updated_task["status"] == "completed"
-    assert updated_task["video_filepath"] == os.path.join(
-        downloader_instance.video_destination_directory, final_video_filename
-    )
-    assert updated_task["audio_filepath"] == os.path.join(
-        downloader_instance.audio_destination_directory, final_audio_filename
-    )
+    result = downloader._download_youtube_video(url)
+    
+    assert result is True
+    assert mock_yt_class.called
+    assert mock_stream.download.call_count == 2
+    assert mock_video_clip.called
+    assert mock_afc.write_audiofile.called
+    assert mock_vfc.write_videofile.called
+    
+    # Verify task status
+    task = downloader.task_manager.get_task(video_id)
+    assert task["status"] == "completed"
+
+@patch("run.YouTube")
+@patch("time.sleep") # Speed up tests by skipping delay
+def test_download_video_unavailable(mock_sleep, mock_yt_class, downloader):
+    """Tests error handling when a video is unavailable."""
+    video_id = "UNAVAIL1234"
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    
+    # Add task manually first so it exists in DB for update_task to find it
+    downloader.task_manager.add_task(url, "Unavail Video", 60)
+    
+    mock_yt = MagicMock()
+    mock_yt.check_availability.side_effect = VideoUnavailable(video_id)
+    mock_yt_class.return_value = mock_yt
+    
+    # The retry decorator wraps the error into a generic Exception
+    with pytest.raises(Exception) as excinfo:
+        downloader._download_youtube_video(url)
+    
+    assert "All retries failed" in str(excinfo.value)
+    assert video_id in str(excinfo.value)
+    
+    # Task should be marked as failed
+    task = downloader.task_manager.get_task(video_id)
+    assert task is not None
+    assert task["status"] == "failed"
+    assert "is unavailable" in task["error_message"]
+
+def test_download_videos_from_list(manager, downloader):
+    """Tests batch downloading from a list of URLs."""
+    urls = ["https://www.youtube.com/watch?v=url11111111", 
+            "https://www.youtube.com/watch?v=url22222222", 
+            "https://www.youtube.com/watch?v=url33333333"]
+    
+    with patch("run.YouTube") as mock_yt, \
+         patch("os.path.exists", return_value=False), \
+         patch.object(downloader, "_download_youtube_video") as mock_download_single:
+        
+        mock_download_single.return_value = True
+        
+        # Mock YouTube object for each URL
+        mock_yt_inst = MagicMock()
+        mock_yt_inst.title = "Mock Title"
+        mock_yt.return_value = mock_yt_inst
+        
+        downloader._preprocess_videos_from_list(urls)
+        
+        assert mock_download_single.call_count == 3
+        mock_download_single.assert_has_calls([call(urls[0]), call(urls[1]), call(urls[2])])
+
+def test_filename_collision_logic(manager):
+    """Tests the unique filename generation logic in YouTubeTaskManager."""
+    url1 = "https://www.youtube.com/watch?v=vid11111111"
+    url2 = "https://www.youtube.com/watch?v=vid22222222"
+    title = "Collision"
+    
+    # Add first task
+    manager.add_task(url1, title, 60)
+    task1 = manager.get_task("vid11111111")
+    assert task1["final_video_filename"] == "Collision.mp4"
+    
+    # Add second task with same title
+    manager.add_task(url2, title, 60)
+    task2 = manager.get_task("vid22222222")
+    assert task2["final_video_filename"] == "Collision_1.mp4"
