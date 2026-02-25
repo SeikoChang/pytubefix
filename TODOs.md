@@ -23,9 +23,14 @@
 - [x] Implement **Smart Resume & Recovery**: Add a `--resume` flag to scan `youtube_tasks.db` and automatically retry `failed` or `pending` tasks.
 - [x] **Enhanced Search & Filters**: Expand CLI to support complex search parameters (e.g., min/max duration, specific upload dates).
 - [x] **Auto-Tagging & Metadata**: Integrate `mutagen` to automatically embed thumbnails, titles, and artist info into MP3/MP4 metadata.
-- [ ] **True Parallel Downloads**: Implement a worker-based concurrency model using `asyncio.gather` and a semaphore to download multiple streams simultaneously.
-    - [ ] Plan: Add concurrency support to `_preprocess_videos_from_list`.
-    - [ ] Plan: Update unit tests to verify parallel execution logic.
+- [x] **True Parallel Downloads**: Implement a worker-based concurrency model using `asyncio.gather` and a semaphore to download multiple streams simultaneously.
+    - [x] Plan: Add concurrency support to `_preprocess_videos_from_list`.
+    - [x] Plan: Update unit tests to verify parallel execution logic.
+    - [x] Plan: Verify with `pytest`.
+    - [x] Plan: Git commit and mark finished.
+- [ ] **Interactive TUI**: Integrate the `rich` library to provide a real-time dashboard with multi-line progress bars and status tables.
+    - [ ] Plan: Use `RichHandler` for enhanced logging.
+    - [ ] Plan: Use `rich.progress.Progress` for multi-task progress bars.
+    - [ ] Plan: Update unit tests to mock `rich` components and verify their usage.
     - [ ] Plan: Verify with `pytest`.
     - [ ] Plan: Git commit and mark finished.
-- [ ] **Interactive TUI**: Integrate the `rich` library to provide a real-time dashboard with multi-line progress bars and status tables.
