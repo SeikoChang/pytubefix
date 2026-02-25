@@ -46,6 +46,23 @@ downloader._download_videos_from_list(video_urls)
 - **Mocks in Testing**: When writing tests, ensure `os.path.exists` side effects account for the multiple stages (DB check, extraction check, merge check).
 - **MoviePy Integration**: The logger must be correctly handled to avoid `RootLogger` callable errors during the `write_videofile` phase.
 
+## 💡 Best Practices
+
+### 1. Persistence & Integrity
+- **Database First**: Check `YouTubeTaskManager` before any download to prevent redundant API calls and disk I/O.
+- **Atomic Moves**: Download to a temporary location and use `shutil.move` only after successful processing/merging.
+- **Hash Verification**: Use `_calculate_file_hash` to ensure file integrity after moves or conversions.
+
+### 2. Testing Strategy
+- **Path-Aware Mocks**: When mocking `os.path.exists`, use a `side_effect` list that mirrors the real execution flow (e.g., `[False (initial), True (after download)]`).
+- **Mocking Instance Methods**: Use `patch.object(downloader, '_download_youtube_video')` to mock methods wrapped in decorators.
+- **Isolated DBs**: Use the `temp_db` fixture to ensure each test runs against a clean, in-memory or temporary SQLite instance.
+
+### 3. Media Processing
+- **Stream Filtering**: Always specify `progressive=False` for high-definition video to get the best quality DASH streams.
+- **Clip Management**: Explicitly call `.close()` on all `moviepy` clips in a `finally` block to release system resources.
+- **Sanitization**: Use `helpers.safe_filename` and additional character stripping to ensure cross-platform filename compatibility.
+
 ## 📝 Maintenance
 - **`TODOs.md`**: Must be updated automatically for every new task and completion.
 - **`Pipfile`**: Use `.venv/bin/pytest` for all verification runs to ensure isolated environment consistency.
