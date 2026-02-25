@@ -9,6 +9,7 @@ import unicodedata
 from functools import wraps
 from logging.handlers import TimedRotatingFileHandler
 import asyncio
+import nest_asyncio # Import nest_asyncio
 
 import sqlite3
 from datetime import datetime
@@ -104,7 +105,7 @@ class YouTubeDownloader:
         self.max_file_length = (
             255  # Maximum length for filenames (Increased from 63 to 255)
         )
-        self.dry_run = True  # If True, no actual downloads will occur
+        self.dry_run = False  # If True, no actual downloads will occur
         self.download_all_streams = (
             False  # If True, download all available streams (not used extensively)
         )
@@ -1044,6 +1045,7 @@ class YouTubeDownloader:
                 self.logger.info(
                     f"Moved video: {new_name} to {self.video_destination_directory}"
                 )
+
             except FileNotFoundError:
                 self.logger.warning(
                     f"Skipping move: Video file {video_path} not found in CWD."
@@ -1195,7 +1197,7 @@ class YouTubeDownloader:
                 current_video_dst = os.path.join(
                     self.base_path,
                     helpers.safe_filename(
-                        playlist.title or "", max_length=self.max_file_length
+                        playlist.title or '', max_length=self.max_file_length
                     ),
                 )
                 current_audio_dst = os.path.join(
@@ -1308,13 +1310,13 @@ class YouTubeDownloader:
                 ExtractError,
             ) as e:
                 self.logger.error(
-                    f"Failed to load playlist {playlist_url} for comparison "
+                    f"Unable to process Playlist {playlist_url} "
                     f"due to pytubefix error: {e}"
                 )
             except Exception as e:
                 self.logger.error(
-                    f"An unexpected error occurred during playlist comparison "
-                    f"for {playlist_url}: {e}"
+                    f"An unexpected error occurred while processing Playlist "
+                    f"{playlist_url}: {e}"
                 )
 
     def _find_duplicated_titles_in_playlists(self) -> list:
@@ -1396,7 +1398,7 @@ class YouTubeDownloader:
                     self.video_destination_directory = os.path.join(
                         self.base_path,
                         helpers.safe_filename(
-                            playlist.title or "", max_length=self.max_file_length
+                            playlist.title or '', max_length=self.max_file_length
                         ),
                     )
                     self.audio_destination_directory = os.path.join(
@@ -1810,6 +1812,9 @@ def _main():
 
 
 if __name__ == "__main__":
+    # Apply nest_asyncio to allow asyncio.run() to be called in a running loop
+    nest_asyncio.apply()
+
     # Instantiate the downloader and run the main process
     downloader = YouTubeDownloader()
     # Set arbitrary destination directories for demonstration if not already set globally
