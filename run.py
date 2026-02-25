@@ -10,6 +10,7 @@ from functools import wraps
 from logging.handlers import TimedRotatingFileHandler
 import asyncio
 import nest_asyncio # Import nest_asyncio
+import argparse
 
 import sqlite3
 from datetime import datetime
@@ -1374,24 +1375,42 @@ class YouTubeDownloader:
                 )
         return all_duplicated_titles
 
-    async def run(self) -> None:
+    async def run(
+        self,
+        video_urls: Optional[list] = None,
+        playlist_urls: Optional[list] = None,
+        channel_urls: Optional[list] = None,
+        search_queries: Optional[list] = None,
+    ) -> None:
         """Orchestrates the YouTube downloading process.
 
         This method processes individual videos, playlists, channels, and
-        quick searches based on the instance's configuration lists (video_urls,
-        playlist_urls, channel_urls, search_queries). It dynamically adjusts
-        destination paths for playlists.
+        quick searches. It prioritizes passed arguments over instance
+        configuration lists.
         """
-        self.logger.info("Starting individual video downloads...")
-        await self._preprocess_videos_from_list(self.video_urls)
+        # Use provided arguments or fallback to instance attributes
+        videos_to_process = video_urls if video_urls is not None else self.video_urls
+        playlists_to_process = (
+            playlist_urls if playlist_urls is not None else self.playlist_urls
+        )
+        channels_to_process = (
+            channel_urls if channel_urls is not None else self.channel_urls
+        )
+        queries_to_process = (
+            search_queries if search_queries is not None else self.search_queries
+        )
 
-        if self.enable_playlist_download:
+        if videos_to_process:
+            self.logger.info("Starting individual video downloads...")
+            await self._preprocess_videos_from_list(videos_to_process)
+
+        if self.enable_playlist_download and playlists_to_process:
             self.logger.info("Starting playlist downloads...")
             # Store original DST paths, as they change per playlist processing
             original_global_video_dst = self.video_destination_directory
             original_global_audio_dst = self.audio_destination_directory
 
-            for playlist_url in self.playlist_urls:
+            for playlist_url in playlists_to_process:
                 try:
                     playlist = YTPlaylist(playlist_url)
                     self.logger.info(f"Processing Playlist: {playlist.title}")
@@ -1399,7 +1418,7 @@ class YouTubeDownloader:
                     self.video_destination_directory = os.path.join(
                         self.base_path,
                         helpers.safe_filename(
-                            playlist.title or '', max_length=self.max_file_length
+                            playlist.title or "", max_length=self.max_file_length
                         ),
                     )
                     self.audio_destination_directory = os.path.join(
@@ -1433,9 +1452,9 @@ class YouTubeDownloader:
             self.video_destination_directory = original_global_video_dst
             self.audio_destination_directory = original_global_audio_dst
 
-        if self.enable_channel_download:
+        if self.enable_channel_download and channels_to_process:
             self.logger.info("Starting channel downloads...")
-            for channel_url in self.channel_urls:
+            for channel_url in channels_to_process:
                 try:
                     channel = Channel(channel_url)
                     self.logger.info(f"Processing Channel: {channel.channel_name}")
@@ -1456,9 +1475,17 @@ class YouTubeDownloader:
                         f"{channel_url}: {e}"
                     )
 
-        if self.enable_quick_search_download:
+        if self.enable_quick_search_download and queries_to_process:
             self.logger.info("Starting quick search downloads...")
-            for query_string, search_filter, top_n_results in self.search_queries:
+            for query_item in queries_to_process:
+                # Handle both (query, filter, N) tuple and plain string query
+                if isinstance(query_item, tuple):
+                    query_string, search_filter, top_n_results = query_item
+                else:
+                    query_string = query_item
+                    search_filter = self.relevance_filter
+                    top_n_results = 1
+
                 filters_obj = (
                     Filter.create()
                     .type(Filter.Type.VIDEO)
@@ -1816,8 +1843,37 @@ if __name__ == "__main__":
     # Apply nest_asyncio to allow asyncio.run() to be called in a running loop
     nest_asyncio.apply()
 
+    parser = argparse.ArgumentParser(description="YouTube Downloader CLI")
+    parser.add_argument("--video", type=str, help="Single video URL to download")
+    parser.add_argument("--playlist", type=str, help="Playlist URL to download")
+    parser.add_argument("--channel", type=str, help="Channel URL to download")
+    parser.add_argument("--search", type=str, help="Search query to download")
+    parser.add_argument("--results", type=int, default=1, help="Number of search results to download")
+    parser.add_argument("--dry-run", action="store_true", help="Perform a dry run (no actual downloads)")
+    parser.add_argument("--video-dir", type=str, help="Custom video destination directory")
+    parser.add_argument("--audio-dir", type=str, help="Custom audio destination directory")
+    parser.add_argument("--no-video", action="store_true", help="Disable video download")
+    parser.add_argument("--no-audio", action="store_true", help="Disable audio download")
+
+    args = parser.parse_args()
+
     # Instantiate the downloader and run the main process
     downloader = YouTubeDownloader()
+
+    # Apply CLI overrides
+    if args.dry_run:
+        downloader.dry_run = True
+    if args.video_dir:
+        downloader.video_destination_directory = args.video_dir
+        os.makedirs(downloader.video_destination_directory, exist_ok=True)
+    if args.audio_dir:
+        downloader.audio_destination_directory = args.audio_dir
+        os.makedirs(downloader.audio_destination_directory, exist_ok=True)
+    if args.no_video:
+        downloader.download_video = False
+    if args.no_audio:
+        downloader.download_audio = False
+
     # Set arbitrary destination directories for demonstration if not already set globally
     if not downloader.video_destination_directory:
         downloader.video_destination_directory = os.path.join(
@@ -1830,6 +1886,19 @@ if __name__ == "__main__":
         )
         os.makedirs(downloader.audio_destination_directory, exist_ok=True)
 
-    asyncio.run(downloader.run())
+    # Determine what to run
+    video_urls = [args.video] if args.video else None
+    playlist_urls = [args.playlist] if args.playlist else None
+    channel_urls = [args.channel] if args.channel else None
+    search_queries = [(args.search, downloader.relevance_filter, args.results)] if args.search else None
+
+    # If no CLI arguments provided for URLs, run defaults (will use downloader internal lists)
+    asyncio.run(downloader.run(
+        video_urls=video_urls,
+        playlist_urls=playlist_urls,
+        channel_urls=channel_urls,
+        search_queries=search_queries
+    ))
+    
     downloader._compare_playlist_downloads()
     downloader.close()

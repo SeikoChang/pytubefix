@@ -6,6 +6,7 @@
 
 ### 1. `run.py` (Unified Downloader)
 The main driver script that handles:
+- **CLI Mode**: Full command-line interface via `argparse`.
 - **Single Video**: via URL.
 - **Playlists/Channels**: via URL.
 - **Search**: via keyword query.
@@ -23,6 +24,7 @@ An SQLite-backed manager (`youtube_tasks.db`) that ensures:
 
 ## 🛠 Usage Example
 
+### Python API
 ```python
 from run import YouTubeDownloader
 
@@ -34,11 +36,26 @@ downloader.download_video = True
 downloader.download_audio = True
 
 # Download a specific video (automatically tracked in DB)
-downloader._download_youtube_video("https://www.youtube.com/watch?v=Abc12345678")
+await downloader._download_youtube_video("https://www.youtube.com/watch?v=Abc12345678")
 
 # Process a list of videos
 video_urls = ["url1", "url2", "url3"]
-downloader._download_videos_from_list(video_urls)
+await downloader._preprocess_videos_from_list(video_urls)
+```
+
+### CLI Mode
+```bash
+# Download a single video
+python run.py --video "https://www.youtube.com/watch?v=Abc12345678"
+
+# Download a playlist to a custom directory
+python run.py --playlist "https://www.youtube.com/playlist?list=..." --video-dir "./my_videos"
+
+# Search and download top 3 results
+python run.py --search "Python tutorials" --results 3
+
+# Dry run (no actual downloads)
+python run.py --video "..." --dry-run
 ```
 
 ## ⚠️ Important Implementation Details
