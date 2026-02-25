@@ -15,3 +15,6 @@
 - [x] Output the current project context and memories to a local `GEMINI.md` file.
 - [x] Refine `GEMINI.md` with usage examples and a system flow chart.
 - [x] Comprehensive revision of `test_run_script.py`: implemented path-aware mocking, improved fixture isolation, and added coverage for failure modes and batch processing.
+- [x] Document project-specific Best Practices in `GEMINI.md`.
+- [x] Refactor `run.py` to use the asynchronous `AsyncYouTube` interface and follow modern `pytubefix` best practices (await metadata, streams, etc.).
+- [x] Update `test_run_script.py` to support asynchronous testing using `pytest-asyncio` and `AsyncMock`.
