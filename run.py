@@ -9,6 +9,7 @@ from typing import Optional, Iterable
 import unicodedata
 from functools import wraps
 from logging.handlers import TimedRotatingFileHandler
+import asyncio
 
 import sqlite3
 from datetime import datetime
@@ -17,6 +18,7 @@ import re
 from moviepy import AudioFileClip, VideoFileClip  # type: ignore
 
 from pytubefix.__main__ import YouTube
+from pytubefix.async_youtube import AsyncYouTube
 from pytubefix.contrib.playlist import Playlist as YTPlaylist
 from pytubefix.contrib.channel import Channel
 from pytubefix.contrib.search import Search
@@ -219,7 +221,8 @@ class YouTubeDownloader:
             # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9IYfTrHA_fCb2Q7R72wtKZ",  # 投資
             # "https://www.youtube.com/playlist?list=PLf8GXxJN5qee681F2CR1zxhEJTktJE7BT",  # QWER Color Coded Lyrics
             # "https://www.youtube.com/playlist?list=PLhkqiApN_VYY91KletZlZPDIX0fNly9tT",  # 帝國軍歌歌謠
-            "https://www.youtube.com/playlist?list=PLhkqiApN_VYaOgTYf0oGEtSwT9XdSRlfX",  # 舊日本行進曲、軍歌、歌謠
+            # "https://www.youtube.com/playlist?list=PLhkqiApN_VYaOgTYf0oGEtSwT9XdSRlfX",  # 舊日本行進曲、軍歌、歌謠
+            "https://www.youtube.com/playlist?list=PLhkqiApN_VYbe3xV7AZKOoALSzv-h1XQm",  # 日本歌曲（3）
         ]
 
         self.channel_urls = [
@@ -290,17 +293,20 @@ class YouTubeDownloader:
 
         def outer_decorator(func):
             @wraps(func)
-            def wrapper(*args, **kwargs):
+            async def wrapper(*args, **kwargs):
                 err = ""
                 for i in range(1, retries + 1):
                     try:
-                        return func(*args, **kwargs)
+                        if asyncio.iscoroutinefunction(func):
+                            return await func(*args, **kwargs)
+                        else:
+                            return func(*args, **kwargs)
                     except Exception as e:
                         self.logger.error(
                             f"Retry [{func.__module__}.{func.__name__}] "
                             f"[{i}/{retries}] delay [{delay}] secs, reason: {e}"
                         )
-                        time.sleep(delay)
+                        await asyncio.sleep(delay)
                         err = str(e)
                 # If all retries fail, re-raise the last exception
                 raise Exception(
@@ -320,7 +326,7 @@ class YouTubeDownloader:
 
         def outer_decorator(func):
             @wraps(func)
-            def wrapper(*args, **kwargs):
+            async def wrapper(*args, **kwargs):
                 # The first argument of an instance method is 'self'
                 instance_self = args[0]
                 # Access the logger from the instance
@@ -328,13 +334,16 @@ class YouTubeDownloader:
                 err = ""
                 for i in range(1, retries + 1):
                     try:
-                        return func(*args, **kwargs)
+                        if asyncio.iscoroutinefunction(func):
+                            return await func(*args, **kwargs)
+                        else:
+                            return func(*args, **kwargs)
                     except Exception as e:
                         _logger.error(
                             f"Retry [{func.__module__}.{func.__name__}] "
                             f"[{i}/{retries}] delay [{delay}] secs, reason: {e}"
                         )
-                        time.sleep(delay)
+                        await asyncio.sleep(delay)
                         err = str(e)
                 # If all retries fail, re-raise the last exception
                 raise Exception(
@@ -392,8 +401,7 @@ class YouTubeDownloader:
             s=normalized_string, max_length=self.max_file_length
         )
 
-    # @_retry_decorator_factory(retries=3, delay=5)
-    def _download_youtube_video(self, url: str) -> bool:
+    async def _download_youtube_video(self, url: str) -> bool:
         """Downloads a YouTube video and its audio, optionally converting
         and merging them.
 
@@ -417,17 +425,17 @@ class YouTubeDownloader:
             return True
 
         try:
-            yt = YouTube(
+            yt = AsyncYouTube(
                 url=url,
-                use_oauth=False,
-                allow_oauth_cache=False,
+                use_oauth=True,
+                allow_oauth_cache=True,
                 on_progress_callback=on_progress,
             )
             # Force update the YouTube object to fetch fresh data
-            yt.check_availability()
+            await yt.check_availability()
         except (RegexMatchError, VideoUnavailable, LiveStreamError, ExtractError) as e:
             self.logger.error(
-                f"Failed to initialize YouTube object for {url} due to "
+                f"Failed to initialize AsyncYouTube object for {url} due to "
                 f"pytubefix error: {e}"
             )
             if task:
@@ -437,7 +445,7 @@ class YouTubeDownloader:
             raise e
         except Exception as e:
             self.logger.error(
-                f"An unexpected error occurred while initializing YouTube "
+                f"An unexpected error occurred while initializing AsyncYouTube "
                 f"object for {url}: {e}"
             )
             if task:
@@ -446,15 +454,16 @@ class YouTubeDownloader:
                 )
             raise e
 
+        video_title = await yt.title()
         if not task:
-            task = self.task_manager.add_task(url, yt.title, self.max_file_length)
+            task = self.task_manager.add_task(url, video_title, self.max_file_length)
             if not task:
                 return False
 
         self.task_manager.update_task(youtube_id, {"status": "in_progress"})
 
-        self.logger.info(f"Title: {yt.title}")
-        self.logger.info(f"Duration: {yt.length} sec")
+        self.logger.info(f"Title: {video_title}")
+        self.logger.info(f"Duration: {await yt.length()} sec")
         self.logger.info("---")
         if self.dry_run:
             self.logger.info("Dry run: No actual download will occur.")
@@ -472,7 +481,8 @@ class YouTubeDownloader:
 
         # Download captions if enabled
         if self.download_captions:
-            for caption in yt.captions.keys():
+            captions = await yt.captions()
+            for caption_code in captions.keys():
                 caption_code = caption.code
                 caption_name = caption.name
                 self.logger.debug(
@@ -508,8 +518,9 @@ class YouTubeDownloader:
                 self.logger.info(
                     f"Attempting to find specific video stream: res={self.video_resolution}, mime_type=video/{self.video_mime_type}"
                 )
+                all_streams = await yt.streams()
                 video_stream = (
-                    yt.streams.filter(
+                    all_streams.filter(
                         progressive=self.progressive_streams,
                         mime_type=f"video/{self.video_mime_type}",
                         res=self.video_resolution,
@@ -524,7 +535,7 @@ class YouTubeDownloader:
                     self.logger.warning(
                         "Specific video stream not found. Trying fallback to highest resolution."
                     )
-                    video_stream = yt.streams.get_highest_resolution(
+                    video_stream = all_streams.get_highest_resolution(
                         progressive=self.progressive_streams
                     )
                     if not video_stream:
@@ -620,8 +631,9 @@ class YouTubeDownloader:
                     self.logger.info(
                         f"Attempting to find specific audio stream: mime_type=audio/{self.audio_mime_type}, abr={self.audio_bitrate}"
                     )
+                    all_streams = await yt.streams()
                     audio_stream = (
-                        yt.streams.filter(
+                        all_streams.filter(
                             mime_type=f"audio/{self.audio_mime_type}",
                             abr=self.audio_bitrate,
                         )
@@ -634,7 +646,7 @@ class YouTubeDownloader:
                         self.logger.warning(
                             f"Specific audio stream not found. Trying highest bitrate audio-only with mime_type=audio/{self.audio_mime_type}."
                         )
-                        audio_stream = yt.streams.get_audio_only(
+                        audio_stream = all_streams.get_audio_only(
                             subtype=self.audio_mime_type
                         )
 
@@ -643,7 +655,7 @@ class YouTubeDownloader:
                         self.logger.warning(
                             "Highest bitrate audio-only stream not found. Trying any available audio-only stream."
                         )
-                        audio_stream = yt.streams.get_audio_only()
+                        audio_stream = all_streams.get_audio_only()
 
                     if not audio_stream:
                         self.logger.error(
@@ -891,7 +903,7 @@ class YouTubeDownloader:
 
         return True
 
-    def _preprocess_videos_from_list(self, videos: Iterable) -> None:
+    async def _preprocess_videos_from_list(self, videos: Iterable) -> None:
         """Iterates through a list of video URLs or YouTube objects and
         downloads each one.
 
@@ -907,7 +919,7 @@ class YouTubeDownloader:
         for i, video_item in enumerate(video_list):
             if isinstance(video_item, str):
                 video_url = video_item
-            elif isinstance(video_item, YouTube):
+            elif isinstance(video_item, YouTube) or isinstance(video_item, AsyncYouTube):
                 video_url = video_item.watch_url
             else:
                 self.logger.error(
@@ -924,8 +936,9 @@ class YouTubeDownloader:
             task = self.task_manager.get_task(youtube_id)
 
             try:
-                yt = YouTube(video_url)
-                video_title = yt.title
+                # Use AsyncYouTube for title pre-check
+                yt = AsyncYouTube(video_url, use_oauth=True, allow_oauth_cache=True)
+                video_title = await yt.title()
 
                 # If no task exists, create one to get the definitive filenames
                 if not task:
@@ -987,7 +1000,7 @@ class YouTubeDownloader:
 
             self.logger.info(f"Processing video {video_url} [{i + 1}/{len(video_list)}]")
             try:
-                self._download_youtube_video(video_url)
+                await self._download_youtube_video(video_url)
             except BotDetection as e:
                 self.logger.error(
                     f"Failed to download {video_url} due to bot detection: {e}. "
@@ -1355,7 +1368,7 @@ class YouTubeDownloader:
                 )
         return all_duplicated_titles
 
-    def run(self) -> None:
+    async def run(self) -> None:
         """Orchestrates the YouTube downloading process.
 
         This method processes individual videos, playlists, channels, and
@@ -1364,7 +1377,7 @@ class YouTubeDownloader:
         destination paths for playlists.
         """
         self.logger.info("Starting individual video downloads...")
-        self._preprocess_videos_from_list(self.video_urls)
+        await self._preprocess_videos_from_list(self.video_urls)
 
         if self.enable_playlist_download:
             self.logger.info("Starting playlist downloads...")
@@ -1393,7 +1406,7 @@ class YouTubeDownloader:
                         f"Video destination: {self.video_destination_directory}, "
                         f"Audio destination: {self.audio_destination_directory}"
                     )
-                    self._preprocess_videos_from_list(playlist.videos)
+                    await self._preprocess_videos_from_list(playlist.videos)
                 except (
                     RegexMatchError,
                     VideoUnavailable,
@@ -1420,7 +1433,7 @@ class YouTubeDownloader:
                 try:
                     channel = Channel(channel_url)
                     self.logger.info(f"Processing Channel: {channel.channel_name}")
-                    self._preprocess_videos_from_list(channel.videos)
+                    await self._preprocess_videos_from_list(channel.videos)
                 except (
                     RegexMatchError,
                     VideoUnavailable,
@@ -1457,7 +1470,7 @@ class YouTubeDownloader:
                         self.logger.info(f"Search result URL: {video.watch_url}")
                         self.logger.info(f"Search result Duration: {video.length} sec")
                         self.logger.info("---")
-                        self._preprocess_videos_from_list([video])
+                        await self._preprocess_videos_from_list([video])
                 except (
                     RegexMatchError,
                     VideoUnavailable,
@@ -1719,27 +1732,33 @@ def _main():
         "https://youtube.com/playlist?list=PLhkqiApN_VYay4opZamqmnHIeKQtR9l-T&si=KYV2DqljMbF0W4mQ",  # 日本演歌
     ]
     example_url = "https://www.youtube.com/watch?v=7g9xcCMdwns"
-    yt_obj = YouTube(example_url, on_progress_callback=on_progress)
-    logging.info(f"YouTube Title: {yt_obj.title}")
-    highest_res_stream = yt_obj.streams.get_highest_resolution(
-        progressive=False, mime_type="video/mp4"
-    )
-    highest_res_stream.download(output_path="download/mtv/歌心りえ/")
 
-    logging.info(f"Captions for video: {yt_obj.captions.keys()}")
-    for caption_code_key in yt_obj.captions.keys():
-        try:
-            caption_track = yt_obj.captions[caption_code_key]
-            caption_track.save(
-                f"download/mtv/歌心りえ/{yt_obj.title}.{caption_code_key}.txt"
-            )
-            logging.info(f"Caption {caption_code_key} saved.")
-        except Exception as e:
-            logging.error(f"Failed to save caption {caption_code_key}: {e}")
+    async def run_example():
+        yt_obj = AsyncYouTube(example_url, use_oauth=True, allow_oauth_cache=True, on_progress_callback=on_progress)
+        logging.info(f"YouTube Title: {await yt_obj.title()}")
+        all_streams = await yt_obj.streams()
+        highest_res_stream = all_streams.get_highest_resolution(
+            progressive=False, mime_type="video/mp4"
+        )
+        highest_res_stream.download(output_path="download/mtv/歌心りえ/")
 
-    audio_only_stream = yt_obj.streams.get_audio_only()
-    audio_only_stream.download(f"download/mtv/歌心りえ/{yt_obj.title}.m4a")
-    logging.info("Audio-only stream downloaded.")
+        captions = await yt_obj.captions()
+        logging.info(f"Captions for video: {captions.keys()}")
+        for caption_code_key in captions.keys():
+            try:
+                caption_track = captions[caption_code_key]
+                caption_track.save(
+                    f"download/mtv/歌心りえ/{await yt_obj.title()}.{caption_code_key}.txt"
+                )
+                logging.info(f"Caption {caption_code_key} saved.")
+            except Exception as e:
+                logging.error(f"Failed to save caption {caption_code_key}: {e}")
+
+        audio_only_stream = all_streams.get_audio_only()
+        audio_only_stream.download(f"download/mtv/歌心りえ/{await yt_obj.title()}.m4a")
+        logging.info("Audio-only stream downloaded.")
+
+    asyncio.run(run_example())
 
     playlist = YTPlaylist(url=playlist_list[0])
     logging.info(f"Playlist Title: {playlist.title}")
@@ -1797,6 +1816,6 @@ if __name__ == "__main__":
         )
         os.makedirs(downloader.audio_destination_directory, exist_ok=True)
 
-    downloader.run()
+    asyncio.run(downloader.run())
     downloader._compare_playlist_downloads()
     downloader.close()
