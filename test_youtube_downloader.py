@@ -4,11 +4,12 @@ import os
 import shutil
 import logging
 import unicodedata
+import time
 from functools import wraps
 from logging.handlers import TimedRotatingFileHandler
 import sys  # Ensure sys is imported at the top level
 
-from moviepy.editor import AudioFileClip, VideoFileClip
+from moviepy import AudioFileClip, VideoFileClip
 
 from pytubefix import Channel, Playlist, Search, YouTube, helpers
 from pytubefix.cli import on_progress
