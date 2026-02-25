@@ -18,3 +18,4 @@
 - [x] Document project-specific Best Practices in `GEMINI.md`.
 - [x] Refactor `run.py` to use the asynchronous `AsyncYouTube` interface and follow modern `pytubefix` best practices (await metadata, streams, etc.).
 - [x] Update `test_run_script.py` to support asynchronous testing using `pytest-asyncio` and `AsyncMock`.
+- [x] Create `requirements.txt` for `run.py` including `moviepy`, `aiohttp`, and `pytest-asyncio`.
