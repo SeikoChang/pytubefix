@@ -511,13 +511,12 @@ class YouTubeDownloader:
                 )
             raise e
 
-                    video_title = await yt.title()
-                    author = await yt.author()
-                    thumbnail_url = await yt.thumbnail_url()
-                    
-                    if not task:
-                        task = self.task_manager.add_task(url, video_title, self.max_file_length)
-        
+        video_title = await yt.title()
+        author = await yt.author()
+        thumbnail_url = await yt.thumbnail_url()
+
+        if not task:
+            task = self.task_manager.add_task(url, video_title, self.max_file_length)
             if not task:
                 return False
 

@@ -184,7 +184,7 @@ async def test_download_video_unavailable(mock_sleep, mock_yt_class, downloader)
 
 @pytest.mark.asyncio
 async def test_download_videos_from_list(manager, downloader):
-    """Tests batch downloading from a list of URLs."""
+    """Tests batch downloading from a list of URLs with concurrency."""
     urls = ["https://www.youtube.com/watch?v=url11111111", 
             "https://www.youtube.com/watch?v=url22222222", 
             "https://www.youtube.com/watch?v=url33333333"]
@@ -200,7 +200,8 @@ async def test_download_videos_from_list(manager, downloader):
         mock_yt_inst.title.return_value = "Mock Title"
         mock_yt_class.return_value = mock_yt_inst
         
-        await downloader._preprocess_videos_from_list(urls)
+        # Test with concurrency=2
+        await downloader._preprocess_videos_from_list(urls, concurrency=2)
         
         assert mock_download_single.call_count == 3
         mock_download_single.assert_has_calls([call(urls[0]), call(urls[1]), call(urls[2])])
