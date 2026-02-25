@@ -5,6 +5,7 @@ import glob
 import shutil
 import time
 import logging
+from typing import Optional, Iterable
 import unicodedata
 from functools import wraps
 from logging.handlers import TimedRotatingFileHandler
@@ -13,9 +14,13 @@ import sqlite3
 from datetime import datetime
 import re
 
-from moviepy import AudioFileClip, VideoFileClip
+from moviepy import AudioFileClip, VideoFileClip  # type: ignore
 
-from pytubefix import Channel, Playlist, Search, YouTube, helpers
+from pytubefix.__main__ import YouTube
+from pytubefix.contrib.playlist import Playlist as YTPlaylist
+from pytubefix.contrib.channel import Channel
+from pytubefix.contrib.search import Search
+from pytubefix import helpers
 from pytubefix.cli import on_progress
 from pytubefix.contrib.search import Filter
 from pytubefix.exceptions import (
@@ -213,7 +218,7 @@ class YouTubeDownloader:
             # "https://youtube.com/playlist?list=PLhkqiApN_VYay4opZamqmnHIeKQtR9l-T&si=KYV2DqljMbF0W4mQ",  # 日本演歌
             # "https://www.youtube.com/playlist?list=PLf8MTi2c_8X9IYfTrHA_fCb2Q7R72wtKZ",  # 投資
             # "https://www.youtube.com/playlist?list=PLf8GXxJN5qee681F2CR1zxhEJTktJE7BT",  # QWER Color Coded Lyrics
-            "https://www.youtube.com/playlist?list=PLhkqiApN_VYY91KletZlZPDIX0fNly9tT",  # 帝國軍歌歌謠
+            # "https://www.youtube.com/playlist?list=PLhkqiApN_VYY91KletZlZPDIX0fNly9tT",  # 帝國軍歌歌謠
             "https://www.youtube.com/playlist?list=PLhkqiApN_VYaOgTYf0oGEtSwT9XdSRlfX",  # 舊日本行進曲、軍歌、歌謠
         ]
 
@@ -886,18 +891,20 @@ class YouTubeDownloader:
 
         return True
 
-    def _preprocess_videos_from_list(self, videos: list) -> None:
+    def _preprocess_videos_from_list(self, videos: Iterable) -> None:
         """Iterates through a list of video URLs or YouTube objects and
         downloads each one.
 
         Args:
-            videos (list): A list containing video URLs (str) or YouTube objects.
+            videos (Iterable): A list or iterable containing video URLs (str) or YouTube objects.
         """
         if not videos:
             self.logger.info("No videos provided for download.")
             return
 
-        for i, video_item in enumerate(videos):
+        # Convert Iterable to list to get length for progress logging
+        video_list = list(videos)
+        for i, video_item in enumerate(video_list):
             if isinstance(video_item, str):
                 video_url = video_item
             elif isinstance(video_item, YouTube):
@@ -978,7 +985,7 @@ class YouTubeDownloader:
                         {"status": "failed", "error_message": f"Pre-check failed: {e}"},
                     )
 
-            self.logger.info(f"Processing video {video_url} [{i + 1}/{len(videos)}]")
+            self.logger.info(f"Processing video {video_url} [{i + 1}/{len(video_list)}]")
             try:
                 self._download_youtube_video(video_url)
             except BotDetection as e:
@@ -1159,25 +1166,25 @@ class YouTubeDownloader:
         """
         for playlist_url in self.playlist_urls:
             try:
-                playlist = Playlist(playlist_url)
+                playlist = YTPlaylist(playlist_url)
                 self.logger.info(
                     f"Processing Playlist for comparison: {playlist.title}"
                 )
                 self.logger.info(f"Original Playlist Title: {playlist.title}")
                 self.logger.info(
-                    f"Safe Playlist Title (for directory): {helpers.safe_filename(playlist.title, max_length=self.max_file_length)}"
+                    f"Safe Playlist Title (for directory): {helpers.safe_filename(playlist.title or '', max_length=self.max_file_length)}"
                 )
 
                 # Set dynamic destination paths based on playlist title for comparison
                 current_video_dst = os.path.join(
                     self.base_path,
                     helpers.safe_filename(
-                        playlist.title, max_length=self.max_file_length
+                        playlist.title or '', max_length=self.max_file_length
                     ),
                 )
                 current_audio_dst = os.path.join(
                     self.base_path,
-                    f"{helpers.safe_filename(playlist.title, max_length=self.max_file_length)}-Audio",
+                    f"{helpers.safe_filename(playlist.title or '', max_length=self.max_file_length)}-Audio",
                 )
 
                 # Get existing video filenames, normalized
@@ -1304,7 +1311,7 @@ class YouTubeDownloader:
         all_duplicated_titles = []
         for playlist_url in self.playlist_urls:
             try:
-                playlist = Playlist(playlist_url)
+                playlist = YTPlaylist(playlist_url)
                 self.logger.info(
                     f"Checking for duplicated titles in playlist: {playlist.title}"
                 )
@@ -1367,18 +1374,18 @@ class YouTubeDownloader:
 
             for playlist_url in self.playlist_urls:
                 try:
-                    playlist = Playlist(playlist_url)
+                    playlist = YTPlaylist(playlist_url)
                     self.logger.info(f"Processing Playlist: {playlist.title}")
                     # Set dynamic destination folders based on playlist title
                     self.video_destination_directory = os.path.join(
                         self.base_path,
                         helpers.safe_filename(
-                            playlist.title, max_length=self.max_file_length
+                            playlist.title or '', max_length=self.max_file_length
                         ),
                     )
                     self.audio_destination_directory = os.path.join(
                         self.base_path,
-                        f"{helpers.safe_filename(playlist.title, max_length=self.max_file_length)}-Audio",
+                        f"{helpers.safe_filename(playlist.title or '', max_length=self.max_file_length)}-Audio",
                     )
                     os.makedirs(self.video_destination_directory, exist_ok=True)
                     os.makedirs(self.audio_destination_directory, exist_ok=True)
@@ -1546,7 +1553,7 @@ class YouTubeTaskManager:
         self.cursor.execute("SELECT 1 FROM tasks WHERE youtube_id = ?", (youtube_id,))
         return self.cursor.fetchone() is not None
 
-    def get_task(self, youtube_id: str) -> dict or None:
+    def get_task(self, youtube_id: str) -> Optional[dict]:
         """Retrieves a task from the database by its YouTube ID."""
         self.cursor.execute("SELECT * FROM tasks WHERE youtube_id = ?", (youtube_id,))
         row = self.cursor.fetchone()
@@ -1584,7 +1591,7 @@ class YouTubeTaskManager:
 
     def add_task(
         self, video_url: str, video_title: str, max_file_length: int
-    ) -> dict or None:
+    ) -> Optional[dict]:
         """Adds a new download task to the database, ensuring unique YouTube ID and filename."""
         youtube_id = self._extract_youtube_id(video_url)
         if not youtube_id:
@@ -1633,7 +1640,7 @@ class YouTubeTaskManager:
         try:
             self.cursor.execute(
                 """INSERT INTO tasks (
-                    youtube_id, video_url, suggested_filename_base, final_video_filename, final_audio_filename, 
+                    youtube_id, video_url, suggested_filename_base, final_video_filename, final_audio_filename,
                     status, added_date, last_updated_date
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
@@ -1734,7 +1741,7 @@ def _main():
     audio_only_stream.download(f"download/mtv/歌心りえ/{yt_obj.title}.m4a")
     logging.info("Audio-only stream downloaded.")
 
-    playlist = Playlist(url=playlist_list[0])
+    playlist = YTPlaylist(url=playlist_list[0])
     logging.info(f"Playlist Title: {playlist.title}")
     for video_in_playlist in playlist.videos:
         logging.info(f"Downloading audio for playlist video: {video_in_playlist.title}")
