@@ -1,0 +1,1 @@
+npx @google/gemini-cli@latest
