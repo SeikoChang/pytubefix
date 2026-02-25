@@ -117,6 +117,7 @@ class YouTubeDownloader:
             self.base_path, "日本演歌-Audio"
         )  # Default audio destination
 
+        self.use_oauth = False
         # --- Download Preferences --- #
         self.download_captions = DOWNLOAD_CAPTIONS  # Download captions if available
 
@@ -198,7 +199,7 @@ class YouTubeDownloader:
             # "https://www.youtube.com/watch?v=I5PI1i2npGQ&list=RDI5PI1i2npGQ&start_radio=1",
             # "https://www.youtube.com/watch?v=fcVHGZVCkDI&list=RDI5PI1i2npGQ&index=2",
             # "https://youtu.be/KCy_5nhiXs0?si=jibLq1eGh6si4fD-",
-            # "https://youtube.com/watch?v=7g9xcCMdwns",
+            "https://youtube.com/watch?v=7g9xcCMdwns",
             # "https://www.youtube.com/watch?v=YAnjSN9hhyM&list=RDYAnjSN9hhyM&start_radio=1",  # JOLIN 蔡依林 PLEASURE世界巡迴演唱會 TAIPEI 20260101 Full version
         ]
 
@@ -427,7 +428,7 @@ class YouTubeDownloader:
         try:
             yt = AsyncYouTube(
                 url=url,
-                use_oauth=True,
+                use_oauth=self.use_oauth,
                 allow_oauth_cache=True,
                 on_progress_callback=on_progress,
             )
@@ -939,7 +940,7 @@ class YouTubeDownloader:
 
             try:
                 # Use AsyncYouTube for title pre-check
-                yt = AsyncYouTube(video_url, use_oauth=True, allow_oauth_cache=True)
+                yt = AsyncYouTube(video_url, use_oauth=self.use_oauth, allow_oauth_cache=True)
                 video_title = await yt.title()
 
                 # If no task exists, create one to get the definitive filenames
@@ -1741,7 +1742,7 @@ def _main():
     async def run_example():
         yt_obj = AsyncYouTube(
             example_url,
-            use_oauth=True,
+            use_oauth=False,
             allow_oauth_cache=True,
             on_progress_callback=on_progress,
         )
