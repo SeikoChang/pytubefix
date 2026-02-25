@@ -3,7 +3,6 @@ import os
 import sys
 import glob
 import shutil
-import time
 import logging
 from typing import Optional, Iterable
 import unicodedata
@@ -105,7 +104,7 @@ class YouTubeDownloader:
         self.max_file_length = (
             255  # Maximum length for filenames (Increased from 63 to 255)
         )
-        self.dry_run = False  # If True, no actual downloads will occur
+        self.dry_run = True  # If True, no actual downloads will occur
         self.download_all_streams = (
             False  # If True, download all available streams (not used extensively)
         )
@@ -482,7 +481,7 @@ class YouTubeDownloader:
         # Download captions if enabled
         if self.download_captions:
             captions = await yt.captions()
-            for caption_code in captions.keys():
+            for caption in captions.keys():
                 caption_code = caption.code
                 caption_name = caption.name
                 self.logger.debug(
@@ -919,7 +918,9 @@ class YouTubeDownloader:
         for i, video_item in enumerate(video_list):
             if isinstance(video_item, str):
                 video_url = video_item
-            elif isinstance(video_item, YouTube) or isinstance(video_item, AsyncYouTube):
+            elif isinstance(video_item, YouTube) or isinstance(
+                video_item, AsyncYouTube
+            ):
                 video_url = video_item.watch_url
             else:
                 self.logger.error(
@@ -998,7 +999,9 @@ class YouTubeDownloader:
                         {"status": "failed", "error_message": f"Pre-check failed: {e}"},
                     )
 
-            self.logger.info(f"Processing video {video_url} [{i + 1}/{len(video_list)}]")
+            self.logger.info(
+                f"Processing video {video_url} [{i + 1}/{len(video_list)}]"
+            )
             try:
                 await self._download_youtube_video(video_url)
             except BotDetection as e:
@@ -1192,7 +1195,7 @@ class YouTubeDownloader:
                 current_video_dst = os.path.join(
                     self.base_path,
                     helpers.safe_filename(
-                        playlist.title or '', max_length=self.max_file_length
+                        playlist.title or "", max_length=self.max_file_length
                     ),
                 )
                 current_audio_dst = os.path.join(
@@ -1393,7 +1396,7 @@ class YouTubeDownloader:
                     self.video_destination_directory = os.path.join(
                         self.base_path,
                         helpers.safe_filename(
-                            playlist.title or '', max_length=self.max_file_length
+                            playlist.title or "", max_length=self.max_file_length
                         ),
                     )
                     self.audio_destination_directory = os.path.join(
@@ -1734,7 +1737,12 @@ def _main():
     example_url = "https://www.youtube.com/watch?v=7g9xcCMdwns"
 
     async def run_example():
-        yt_obj = AsyncYouTube(example_url, use_oauth=True, allow_oauth_cache=True, on_progress_callback=on_progress)
+        yt_obj = AsyncYouTube(
+            example_url,
+            use_oauth=True,
+            allow_oauth_cache=True,
+            on_progress_callback=on_progress,
+        )
         logging.info(f"YouTube Title: {await yt_obj.title()}")
         all_streams = await yt_obj.streams()
         highest_res_stream = all_streams.get_highest_resolution(
