@@ -2,7 +2,8 @@ import pytest
 import os
 import shutil
 import sqlite3
-from unittest.mock import MagicMock, patch, call
+import asyncio
+from unittest.mock import MagicMock, patch, call, AsyncMock
 from run import YouTubeTaskManager, YouTubeDownloader, on_progress, VideoUnavailable
 
 # --- Fixtures ---
@@ -45,7 +46,7 @@ def downloader(manager, temp_dir):
     dl.logger = MagicMock()
     return dl
 
-# --- YouTubeTaskManager Tests ---
+# --- YouTubeTaskManager Tests (Synchronous) ---
 
 def test_manager_init(manager):
     """Tests if the database and table are initialized correctly."""
@@ -88,16 +89,17 @@ def test_update_task(manager):
     assert task["status"] == "completed"
     assert task["video_filepath"] == "/tmp/v.mp4"
 
-# --- YouTubeDownloader Tests ---
+# --- YouTubeDownloader Tests (Asynchronous) ---
 
-@patch("run.YouTube")
+@pytest.mark.asyncio
+@patch("run.AsyncYouTube")
 @patch("run.VideoFileClip")
 @patch("run.AudioFileClip")
 @patch("os.path.exists")
 @patch("shutil.move")
 @patch("os.remove")
 @patch("run.on_progress")
-def test_download_video_success(
+async def test_download_video_success(
     mock_on_progress, mock_remove, mock_move, mock_exists,
     mock_audio_clip, mock_video_clip, mock_yt_class,
     downloader, temp_dir
@@ -106,16 +108,22 @@ def test_download_video_success(
     video_id = "SUCCESS1234"
     url = f"https://www.youtube.com/watch?v={video_id}"
     
-    # Mock YouTube object
-    mock_yt = MagicMock()
-    mock_yt.title = "Video"
-    mock_yt.length = 100
+    # Mock AsyncYouTube object
+    mock_yt = AsyncMock()
+    mock_yt.title.return_value = "Video"
+    mock_yt.length.return_value = 100
+    mock_yt.check_availability.return_value = None
     mock_yt_class.return_value = mock_yt
     
     # Mock Streams
     mock_stream = MagicMock()
-    mock_yt.streams.filter.return_value.order_by.return_value.desc.return_value.last.return_value = mock_stream
-    mock_yt.streams.filter.return_value.asc.return_value.first.return_value = mock_stream
+    mock_streams_query = MagicMock()
+    mock_streams_query.filter.return_value.order_by.return_value.desc.return_value.last.return_value = mock_stream
+    mock_streams_query.filter.return_value.asc.return_value.first.return_value = mock_stream
+    mock_yt.streams.return_value = mock_streams_query
+    
+    # Mock Captions
+    mock_yt.captions.return_value = MagicMock()
     
     # Mock moviepy clips
     mock_vfc = MagicMock()
@@ -133,7 +141,7 @@ def test_download_video_success(
     # 10: original video removal check -> True
     mock_exists.side_effect = [False, False, False, False, False, False, True, True, False, True] + [True]*10
 
-    result = downloader._download_youtube_video(url)
+    result = await downloader._download_youtube_video(url)
     
     assert result is True
     assert mock_yt_class.called
@@ -146,9 +154,10 @@ def test_download_video_success(
     task = downloader.task_manager.get_task(video_id)
     assert task["status"] == "completed"
 
-@patch("run.YouTube")
-@patch("time.sleep") # Speed up tests by skipping delay
-def test_download_video_unavailable(mock_sleep, mock_yt_class, downloader):
+@pytest.mark.asyncio
+@patch("run.AsyncYouTube")
+@patch("asyncio.sleep") # Speed up tests by skipping delay
+async def test_download_video_unavailable(mock_sleep, mock_yt_class, downloader):
     """Tests error handling when a video is unavailable."""
     video_id = "UNAVAIL1234"
     url = f"https://www.youtube.com/watch?v={video_id}"
@@ -156,13 +165,13 @@ def test_download_video_unavailable(mock_sleep, mock_yt_class, downloader):
     # Add task manually first so it exists in DB for update_task to find it
     downloader.task_manager.add_task(url, "Unavail Video", 60)
     
-    mock_yt = MagicMock()
+    mock_yt = AsyncMock()
     mock_yt.check_availability.side_effect = VideoUnavailable(video_id)
     mock_yt_class.return_value = mock_yt
     
     # The retry decorator wraps the error into a generic Exception
     with pytest.raises(Exception) as excinfo:
-        downloader._download_youtube_video(url)
+        await downloader._download_youtube_video(url)
     
     assert "All retries failed" in str(excinfo.value)
     assert video_id in str(excinfo.value)
@@ -173,24 +182,25 @@ def test_download_video_unavailable(mock_sleep, mock_yt_class, downloader):
     assert task["status"] == "failed"
     assert "is unavailable" in task["error_message"]
 
-def test_download_videos_from_list(manager, downloader):
+@pytest.mark.asyncio
+async def test_download_videos_from_list(manager, downloader):
     """Tests batch downloading from a list of URLs."""
     urls = ["https://www.youtube.com/watch?v=url11111111", 
             "https://www.youtube.com/watch?v=url22222222", 
             "https://www.youtube.com/watch?v=url33333333"]
     
-    with patch("run.YouTube") as mock_yt, \
+    with patch("run.AsyncYouTube") as mock_yt_class, \
          patch("os.path.exists", return_value=False), \
-         patch.object(downloader, "_download_youtube_video") as mock_download_single:
+         patch.object(downloader, "_download_youtube_video", new_callable=AsyncMock) as mock_download_single:
         
         mock_download_single.return_value = True
         
-        # Mock YouTube object for each URL
-        mock_yt_inst = MagicMock()
-        mock_yt_inst.title = "Mock Title"
-        mock_yt.return_value = mock_yt_inst
+        # Mock AsyncYouTube object for each URL
+        mock_yt_inst = AsyncMock()
+        mock_yt_inst.title.return_value = "Mock Title"
+        mock_yt_class.return_value = mock_yt_inst
         
-        downloader._preprocess_videos_from_list(urls)
+        await downloader._preprocess_videos_from_list(urls)
         
         assert mock_download_single.call_count == 3
         mock_download_single.assert_has_calls([call(urls[0]), call(urls[1]), call(urls[2])])
