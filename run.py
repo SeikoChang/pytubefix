@@ -11,6 +11,10 @@ from logging.handlers import TimedRotatingFileHandler
 import asyncio
 import nest_asyncio # Import nest_asyncio
 import argparse
+import requests
+from mutagen.mp3 import MP3
+from mutagen.id3 import ID3, APIC, TIT2, TPE1, error
+from mutagen.mp4 import MP4, MP4Cover
 
 import sqlite3
 from datetime import datetime
@@ -403,6 +407,57 @@ class YouTubeDownloader:
             s=normalized_string, max_length=self.max_file_length
         )
 
+    def _embed_metadata(self, filepath: str, title: str, author: str, thumbnail_url: str):
+        """Embeds metadata (Title, Artist, Thumbnail) into MP3 or MP4 files."""
+        if not os.path.exists(filepath):
+            return
+
+        ext = os.path.splitext(filepath)[1].lower()
+        
+        try:
+            # Fetch thumbnail
+            thumb_data = None
+            if thumbnail_url:
+                response = requests.get(thumbnail_url, timeout=10)
+                if response.status_code == 200:
+                    thumb_data = response.content
+
+            if ext == ".mp3":
+                audio = MP3(filepath, ID3=ID3)
+                try:
+                    audio.add_tags()
+                except error:
+                    pass
+                
+                audio.tags.add(TIT2(encoding=3, text=title))
+                audio.tags.add(TPE1(encoding=3, text=author))
+                
+                if thumb_data:
+                    audio.tags.add(APIC(
+                        encoding=3,
+                        mime='image/jpeg',
+                        type=3,
+                        desc=u'Cover',
+                        data=thumb_data
+                    ))
+                audio.save()
+                self.logger.info(f"Metadata embedded for MP3: {filepath}")
+
+            elif ext == ".mp4":
+                video = MP4(filepath)
+                video["\xa9nam"] = title
+                video["\xa9ART"] = author
+                
+                if thumb_data:
+                    # MP4Cover expects a list of bytes
+                    video["covr"] = [MP4Cover(thumb_data, imageformat=MP4Cover.FORMAT_JPEG)]
+                
+                video.save()
+                self.logger.info(f"Metadata embedded for MP4: {filepath}")
+
+        except Exception as e:
+            self.logger.error(f"Failed to embed metadata for {filepath}: {e}")
+
     async def _download_youtube_video(self, url: str) -> bool:
         """Downloads a YouTube video and its audio, optionally converting
         and merging them.
@@ -456,9 +511,13 @@ class YouTubeDownloader:
                 )
             raise e
 
-        video_title = await yt.title()
-        if not task:
-            task = self.task_manager.add_task(url, video_title, self.max_file_length)
+                    video_title = await yt.title()
+                    author = await yt.author()
+                    thumbnail_url = await yt.thumbnail_url()
+                    
+                    if not task:
+                        task = self.task_manager.add_task(url, video_title, self.max_file_length)
+        
             if not task:
                 return False
 
@@ -888,6 +947,12 @@ class YouTubeDownloader:
             else None
         )
 
+        # Embed metadata
+        if self.download_video and remote_video_filepath:
+            self._embed_metadata(remote_video_filepath, video_title, author, thumbnail_url)
+        if self.download_audio and remote_audio_filepath:
+            self._embed_metadata(remote_audio_filepath, video_title, author, thumbnail_url)
+
         self.task_manager.update_task(
             youtube_id,
             {
@@ -905,12 +970,13 @@ class YouTubeDownloader:
 
         return True
 
-    async def _preprocess_videos_from_list(self, videos: Iterable) -> None:
+    async def _preprocess_videos_from_list(self, videos: Iterable, concurrency: int = 1) -> None:
         """Iterates through a list of video URLs or YouTube objects and
-        downloads each one.
+        downloads each one, possibly in parallel.
 
         Args:
             videos (Iterable): A list or iterable containing video URLs (str) or YouTube objects.
+            concurrency (int): Maximum number of concurrent downloads.
         """
         if not videos:
             self.logger.info("No videos provided for download.")
@@ -918,104 +984,110 @@ class YouTubeDownloader:
 
         # Convert Iterable to list to get length for progress logging
         video_list = list(videos)
-        for i, video_item in enumerate(video_list):
-            if isinstance(video_item, str):
-                video_url = video_item
-            elif isinstance(video_item, YouTube) or isinstance(
-                video_item, AsyncYouTube
-            ):
-                video_url = video_item.watch_url
-            else:
-                self.logger.error(
-                    f"Invalid video item type: {type(video_item)} encountered for "
-                    f"item {i}. Skipping."
-                )
-                continue
+        semaphore = asyncio.Semaphore(concurrency)
 
-            youtube_id = self.task_manager._extract_youtube_id(video_url)
-            if not youtube_id:
-                self.logger.error(f"Could not extract YouTube ID from URL: {video_url}")
-                continue
-
-            task = self.task_manager.get_task(youtube_id)
-
-            try:
-                # Use AsyncYouTube for title pre-check
-                yt = AsyncYouTube(video_url, use_oauth=self.use_oauth, allow_oauth_cache=True)
-                video_title = await yt.title()
-
-                # If no task exists, create one to get the definitive filenames
-                if not task:
-                    task = self.task_manager.add_task(
-                        video_url, video_title, self.max_file_length
-                    )
-                    if not task:  # Should not happen if add_task works, but for safety
-                        self.logger.error(
-                            f"Failed to add task for {video_url}. Skipping."
-                        )
-                        continue
-
-                video_full_filename = task["final_video_filename"]
-                audio_full_filename = task["final_audio_filename"]
-
-                remote_video_filepath = os.path.join(
-                    self.video_destination_directory, video_full_filename
-                )
-                remote_audio_filepath = os.path.join(
-                    self.audio_destination_directory, audio_full_filename
-                )
-
-                video_exists = os.path.exists(remote_video_filepath)
-                audio_exists = os.path.exists(remote_audio_filepath)
-
-                # Determine if we should skip based on what we want to download and what already exists.
-                should_skip = False
-                if not self.reconvert_media:
-                    if self.download_video and self.download_audio:
-                        if video_exists and audio_exists:
-                            should_skip = True
-                    elif self.download_video:
-                        if video_exists:
-                            should_skip = True
-                    elif self.download_audio:
-                        if audio_exists:
-                            should_skip = True
-
-                if should_skip:
-                    self.logger.info(
-                        f"Required file(s) for '{video_title}' already exist on disk. Updating status to 'completed'."
-                    )
-                    self.task_manager.update_task(youtube_id, {"status": "completed"})
-                    continue
+        async def _worker(i, video_item):
+            async with semaphore:
+                if isinstance(video_item, str):
+                    video_url = video_item
+                elif isinstance(video_item, YouTube) or isinstance(
+                    video_item, AsyncYouTube
+                ):
+                    video_url = video_item.watch_url
                 else:
-                    # If files don't exist, ensure task is pending if it exists, or it was just added as pending
-                    self.task_manager.update_task(youtube_id, {"status": "pending"})
+                    self.logger.error(
+                        f"Invalid video item type: {type(video_item)} encountered for "
+                        f"item {i}. Skipping."
+                    )
+                    return
 
-            except Exception as e:
-                self.logger.error(f"Could not perform pre-check for {video_url}: {e}")
-                # If pre-check fails, log and continue to the download attempt in case it's a transient error
-                # and _download_youtube_video can handle it or log a more specific error
-                # Also ensure the task status is marked as failed if it's already in the DB
-                if task:
-                    self.task_manager.update_task(
-                        youtube_id,
-                        {"status": "failed", "error_message": f"Pre-check failed: {e}"},
+                youtube_id = self.task_manager._extract_youtube_id(video_url)
+                if not youtube_id:
+                    self.logger.error(f"Could not extract YouTube ID from URL: {video_url}")
+                    return
+
+                task = self.task_manager.get_task(youtube_id)
+
+                try:
+                    # Use AsyncYouTube for title pre-check
+                    yt = AsyncYouTube(video_url, use_oauth=self.use_oauth, allow_oauth_cache=True)
+                    video_title = await yt.title()
+
+                    # If no task exists, create one to get the definitive filenames
+                    if not task:
+                        task = self.task_manager.add_task(
+                            video_url, video_title, self.max_file_length
+                        )
+                        if not task:  # Should not happen if add_task works, but for safety
+                            self.logger.error(
+                                f"Failed to add task for {video_url}. Skipping."
+                            )
+                            return
+
+                    video_full_filename = task["final_video_filename"]
+                    audio_full_filename = task["final_audio_filename"]
+
+                    remote_video_filepath = os.path.join(
+                        self.video_destination_directory, video_full_filename
+                    )
+                    remote_audio_filepath = os.path.join(
+                        self.audio_destination_directory, audio_full_filename
                     )
 
-            self.logger.info(
-                f"Processing video {video_url} [{i + 1}/{len(video_list)}]"
-            )
-            try:
-                await self._download_youtube_video(video_url)
-            except BotDetection as e:
-                self.logger.error(
-                    f"Failed to download {video_url} due to bot detection: {e}. "
-                    f"Consider changing client type or IP address."
+                    video_exists = os.path.exists(remote_video_filepath)
+                    audio_exists = os.path.exists(remote_audio_filepath)
+
+                    # Determine if we should skip based on what we want to download and what already exists.
+                    should_skip = False
+                    if not self.reconvert_media:
+                        if self.download_video and self.download_audio:
+                            if video_exists and audio_exists:
+                                should_skip = True
+                        elif self.download_video:
+                            if video_exists:
+                                should_skip = True
+                        elif self.download_audio:
+                            if audio_exists:
+                                should_skip = True
+
+                    if should_skip:
+                        self.logger.info(
+                            f"Required file(s) for '{video_title}' already exist on disk. Updating status to 'completed'."
+                        )
+                        self.task_manager.update_task(youtube_id, {"status": "completed"})
+                        return
+                    else:
+                        # If files don't exist, ensure task is pending if it exists, or it was just added as pending
+                        self.task_manager.update_task(youtube_id, {"status": "pending"})
+
+                except Exception as e:
+                    self.logger.error(f"Could not perform pre-check for {video_url}: {e}")
+                    # If pre-check fails, log and continue to the download attempt in case it's a transient error
+                    # and _download_youtube_video can handle it or log a more specific error
+                    # Also ensure the task status is marked as failed if it's already in the DB
+                    if task:
+                        self.task_manager.update_task(
+                            youtube_id,
+                            {"status": "failed", "error_message": f"Pre-check failed: {e}"},
+                        )
+
+                self.logger.info(
+                    f"Processing video {video_url} [{i + 1}/{len(video_list)}]"
                 )
-            except Exception as e:
-                self.logger.error(
-                    f"An unexpected error occurred while downloading {video_url}: {e}"
-                )
+                try:
+                    await self._download_youtube_video(video_url)
+                except BotDetection as e:
+                    self.logger.error(
+                        f"Failed to download {video_url} due to bot detection: {e}. "
+                        f"Consider changing client type or IP address."
+                    )
+                except Exception as e:
+                    self.logger.error(
+                        f"An unexpected error occurred while downloading {video_url}: {e}"
+                    )
+
+        # Execute workers in parallel
+        await asyncio.gather(*[_worker(i, item) for i, item in enumerate(video_list)])
 
     def _move_local_files_to_destinations(self) -> None:
         """Moves video and audio files from the current working directory to their
@@ -1381,6 +1453,8 @@ class YouTubeDownloader:
         playlist_urls: Optional[list] = None,
         channel_urls: Optional[list] = None,
         search_queries: Optional[list] = None,
+        resume: bool = False,
+        concurrency: int = 1,
     ) -> None:
         """Orchestrates the YouTube downloading process.
 
@@ -1388,6 +1462,17 @@ class YouTubeDownloader:
         quick searches. It prioritizes passed arguments over instance
         configuration lists.
         """
+        if resume:
+            self.logger.info("Resuming unfinished tasks from database...")
+            unfinished = self.task_manager.get_unfinished_tasks()
+            if not unfinished:
+                self.logger.info("No unfinished tasks found in database.")
+            else:
+                self.logger.info(f"Found {len(unfinished)} unfinished task(s).")
+                await self._preprocess_videos_from_list(
+                    [t["video_url"] for t in unfinished], concurrency=concurrency
+                )
+
         # Use provided arguments or fallback to instance attributes
         videos_to_process = video_urls if video_urls is not None else self.video_urls
         playlists_to_process = (
@@ -1402,7 +1487,9 @@ class YouTubeDownloader:
 
         if videos_to_process:
             self.logger.info("Starting individual video downloads...")
-            await self._preprocess_videos_from_list(videos_to_process)
+            await self._preprocess_videos_from_list(
+                videos_to_process, concurrency=concurrency
+            )
 
         if self.enable_playlist_download and playlists_to_process:
             self.logger.info("Starting playlist downloads...")
@@ -1431,7 +1518,9 @@ class YouTubeDownloader:
                         f"Video destination: {self.video_destination_directory}, "
                         f"Audio destination: {self.audio_destination_directory}"
                     )
-                    await self._preprocess_videos_from_list(playlist.videos)
+                    await self._preprocess_videos_from_list(
+                        playlist.videos, concurrency=concurrency
+                    )
                 except (
                     RegexMatchError,
                     VideoUnavailable,
@@ -1458,7 +1547,9 @@ class YouTubeDownloader:
                 try:
                     channel = Channel(channel_url)
                     self.logger.info(f"Processing Channel: {channel.channel_name}")
-                    await self._preprocess_videos_from_list(channel.videos)
+                    await self._preprocess_videos_from_list(
+                        channel.videos, concurrency=concurrency
+                    )
                 except (
                     RegexMatchError,
                     VideoUnavailable,
@@ -1478,19 +1569,32 @@ class YouTubeDownloader:
         if self.enable_quick_search_download and queries_to_process:
             self.logger.info("Starting quick search downloads...")
             for query_item in queries_to_process:
-                # Handle both (query, filter, N) tuple and plain string query
+                # Handle both (query, filter_dict, N) and older (query, sort_by, N)
                 if isinstance(query_item, tuple):
-                    query_string, search_filter, top_n_results = query_item
+                    query_string = query_item[0]
+                    filter_params = query_item[1]
+                    top_n_results = query_item[2]
                 else:
                     query_string = query_item
-                    search_filter = self.relevance_filter
+                    filter_params = {"sort_by": self.relevance_filter}
                     top_n_results = 1
 
-                filters_obj = (
-                    Filter.create()
-                    .type(Filter.Type.VIDEO)
-                    .sort_by(Filter.SortBy(search_filter))
-                )
+                # Construct Filter object
+                filters_obj = Filter.create().type(Filter.Type.VIDEO)
+                
+                # If filter_params is a simple SortBy object (compatibility)
+                if isinstance(filter_params, Filter.SortBy):
+                    filters_obj = filters_obj.sort_by(filter_params)
+                elif isinstance(filter_params, dict):
+                    if "sort_by" in filter_params:
+                        filters_obj = filters_obj.sort_by(filter_params["sort_by"])
+                    if "upload_date" in filter_params:
+                        filters_obj = filters_obj.upload_date(filter_params["upload_date"])
+                    if "duration" in filter_params:
+                        filters_obj = filters_obj.duration(filter_params["duration"])
+                    if "features" in filter_params:
+                        filters_obj = filters_obj.feature(filter_params["features"])
+
                 try:
                     search_results = Search(query_string, filters=filters_obj)
                     if not search_results.videos:
@@ -1503,7 +1607,9 @@ class YouTubeDownloader:
                         self.logger.info(f"Search result URL: {video.watch_url}")
                         self.logger.info(f"Search result Duration: {video.length} sec")
                         self.logger.info("---")
-                        await self._preprocess_videos_from_list([video])
+                        await self._preprocess_videos_from_list(
+                            [video], concurrency=concurrency
+                        )
                 except (
                     RegexMatchError,
                     VideoUnavailable,
@@ -1598,6 +1704,15 @@ class YouTubeTaskManager:
         """Checks if a task with the given YouTube ID already exists in the database."""
         self.cursor.execute("SELECT 1 FROM tasks WHERE youtube_id = ?", (youtube_id,))
         return self.cursor.fetchone() is not None
+
+    def get_unfinished_tasks(self) -> list:
+        """Retrieves all tasks that are not yet 'completed' or 'skipped'."""
+        self.cursor.execute(
+            "SELECT youtube_id, video_url, status FROM tasks WHERE status IN ('pending', 'failed', 'in_progress')"
+        )
+        rows = self.cursor.fetchall()
+        # Return list of dicts for easier consumption
+        return [{"youtube_id": r[0], "video_url": r[1], "status": r[2]} for r in rows]
 
     def get_task(self, youtube_id: str) -> Optional[dict]:
         """Retrieves a task from the database by its YouTube ID."""
@@ -1849,11 +1964,15 @@ if __name__ == "__main__":
     parser.add_argument("--channel", type=str, help="Channel URL to download")
     parser.add_argument("--search", type=str, help="Search query to download")
     parser.add_argument("--results", type=int, default=1, help="Number of search results to download")
+    parser.add_argument("--search-sort", type=str, choices=["relevance", "upload_date", "view_count", "rating"], default="relevance")
+    parser.add_argument("--search-date", type=str, choices=["hour", "today", "week", "month", "year"], help="Filter by upload date")
+    parser.add_argument("--search-duration", type=str, choices=["short", "medium", "long"], help="Filter by duration (short < 4m, long > 20m)")
     parser.add_argument("--dry-run", action="store_true", help="Perform a dry run (no actual downloads)")
     parser.add_argument("--video-dir", type=str, help="Custom video destination directory")
     parser.add_argument("--audio-dir", type=str, help="Custom audio destination directory")
     parser.add_argument("--no-video", action="store_true", help="Disable video download")
     parser.add_argument("--no-audio", action="store_true", help="Disable audio download")
+    parser.add_argument("--resume", action="store_true", help="Resume unfinished tasks from database")
 
     args = parser.parse_args()
 
@@ -1890,14 +2009,24 @@ if __name__ == "__main__":
     video_urls = [args.video] if args.video else None
     playlist_urls = [args.playlist] if args.playlist else None
     channel_urls = [args.channel] if args.channel else None
-    search_queries = [(args.search, downloader.relevance_filter, args.results)] if args.search else None
+    
+    search_queries = None
+    if args.search:
+        search_filter = {"sort_by": Filter.SortBy[args.search_sort.upper()]}
+        if args.search_date:
+            search_filter["upload_date"] = Filter.UploadDate[args.search_date.upper()]
+        if args.search_duration:
+            search_filter["duration"] = Filter.Duration[args.search_duration.upper()]
+        
+        search_queries = [(args.search, search_filter, args.results)]
 
     # If no CLI arguments provided for URLs, run defaults (will use downloader internal lists)
     asyncio.run(downloader.run(
         video_urls=video_urls,
         playlist_urls=playlist_urls,
         channel_urls=channel_urls,
-        search_queries=search_queries
+        search_queries=search_queries,
+        resume=args.resume
     ))
     
     downloader._compare_playlist_downloads()
