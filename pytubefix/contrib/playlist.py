@@ -5,7 +5,9 @@ from collections.abc import Sequence
 from datetime import date, datetime
 from typing import Dict, Iterable, List, Optional, Tuple, Union, Any, Callable
 
-from pytubefix import extract, request, YouTube
+import pytubefix.extract as extract
+import pytubefix.request as request
+from pytubefix.__main__ import YouTube
 from pytubefix.innertube import InnerTube
 from pytubefix.helpers import cache, DeferredGeneratorList, install_proxy, uniqueify
 
@@ -373,7 +375,7 @@ class Playlist(Sequence):
 
     @property
     @cache
-    def last_updated(self) -> Optional[date]:
+    def last_updated(self) -> Optional[Union[date, str]]:
         """Extract the date that the playlist was last updated.
 
         For some playlists, this will be a specific date, which is returned as a datetime

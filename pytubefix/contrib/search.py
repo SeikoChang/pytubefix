@@ -5,7 +5,9 @@ from enum import Enum
 from typing import List, Optional, Dict, Callable, Tuple, Set
 
 # Local imports
-from pytubefix import YouTube, Channel, Playlist
+from pytubefix.__main__ import YouTube
+from pytubefix.contrib.channel import Channel
+from pytubefix.contrib.playlist import Playlist
 from pytubefix.helpers import install_proxy
 from pytubefix.innertube import InnerTube
 from pytubefix.protobuf import encode_protobuf

@@ -206,7 +206,7 @@ def setup_logger(level: int = logging.ERROR, log_filename: Optional[str] = None)
 GenericType = TypeVar("GenericType")
 
 
-def cache(func: Callable[..., GenericType]) -> GenericType:
+def cache(func: Callable[..., GenericType]) -> Callable[..., GenericType]:
     """ mypy compatible annotation wrapper for lru_cache"""
     return functools.lru_cache()(func)  # type: ignore
 

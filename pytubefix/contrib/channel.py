@@ -2,9 +2,13 @@
 """Module for interacting with a user's youtube channel."""
 import json
 import logging
-from typing import Dict, List, Optional, Tuple, Iterable, Any, Callable
+from datetime import date
+from typing import Dict, List, Optional, Tuple, Iterable, Any, Callable, Union
 
-from pytubefix import extract, YouTube, Playlist, request
+import pytubefix.extract as extract
+import pytubefix.request as request
+from pytubefix.__main__ import YouTube
+from pytubefix.contrib.playlist import Playlist
 from pytubefix.helpers import cache, uniqueify, DeferredGeneratorList
 from pytubefix.innertube import InnerTube
 
@@ -565,7 +569,7 @@ class Channel(Playlist):
             return 'Unknown'
 
     @property
-    def last_updated(self) -> str:
+    def last_updated(self) -> Optional[Union[date, str]]:
         """Extract the date of the last uploaded video.
 
         :return: Last video uploaded
