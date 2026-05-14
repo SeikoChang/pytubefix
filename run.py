@@ -15,6 +15,18 @@ import requests
 from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, APIC, TIT2, TPE1, error
 from mutagen.mp4 import MP4, MP4Cover
+from rich.console import Console
+from rich.logging import RichHandler
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    BarColumn,
+    DownloadColumn,
+    TransferSpeedColumn,
+    TimeRemainingColumn,
+)
+from rich.table import Table
 
 import sqlite3
 from datetime import datetime
@@ -40,9 +52,9 @@ from pytubefix.exceptions import (
 
 LOGGING_LEVEL = logging.INFO
 DOWNLOAD_CAPTIONS = True
-DOWNLOAD_VIDEO = True
+DOWNLOAD_VIDEO = False
 DOWNLOAD_AUDIO = True
-RECOVERT_MEDIA = True
+RECOVERT_MEDIA = False
 
 PLAYLIST_DOWNLOAD = True
 CHANNEL_DOWNLOAD = False
@@ -72,35 +84,39 @@ class YouTubeDownloader:
         self.view_count_filter = Filter.SortBy.VIEW_COUNT
         self.rating_filter = Filter.SortBy.RATING
 
+        # --- Rich TUI --- #
+        self.console = Console()
+        self.progress = None # Global progress object for TUI
+
         # --- Logging Configuration --- #
         self.log_date_format = "%Y-%m-%d %H:%M:%S"
-        self.log_format = (
-            "%(asctime)s | %(levelname)s : %(message)s"  # Corrected logging format
-        )
+        self.log_format = "%(message)s"  # Simplified for RichHandler
         self.log_level = LOGGING_LEVEL
 
-        # Configure base logging to display INFO level and above to stdout
+        # Configure base logging with RichHandler
         logging.basicConfig(
             level=self.log_level,
             format=self.log_format,
             datefmt=self.log_date_format,
-            stream=sys.stdout,
-            force=True,  # Force Colab to use this config, overriding defaults
+            handlers=[RichHandler(console=self.console, rich_tracebacks=True)],
+            force=True,
         )
-        self.logger: logging.Logger = logging.getLogger()
+        self.logger: logging.Logger = logging.getLogger("pytubefix")
 
-        # Add a TimedRotatingFileHandler to save logs to a file, rotating daily
+        # Add a TimedRotatingFileHandler
         self.file_handler = TimedRotatingFileHandler(
             filename="pytub.log",
-            when="midnight",  # Rotate at midnight every day
-            interval=1,  # Every 1 day
-            backupCount=7,  # Keep 7 backup log files (for a week)
+            when="midnight",
+            interval=1,
+            backupCount=7,
         )
-        self.file_handler.suffix = "_%Y%m%d.log"  # Suffix for rotated log files
-        self.formatter = logging.Formatter(
-            fmt=self.log_format, datefmt=self.log_date_format
+        self.file_handler.suffix = "_%Y%m%d.log"
+        # Use a more detailed format for file logs
+        detailed_format = logging.Formatter(
+            fmt="%(asctime)s | %(levelname)s : %(message)s",
+            datefmt=self.log_date_format
         )
-        self.file_handler.setFormatter(self.formatter)
+        self.file_handler.setFormatter(detailed_format)
         self.logger.addHandler(self.file_handler)
 
         # --- Environment Settings --- #
@@ -204,7 +220,7 @@ class YouTubeDownloader:
             # "https://www.youtube.com/watch?v=I5PI1i2npGQ&list=RDI5PI1i2npGQ&start_radio=1",
             # "https://www.youtube.com/watch?v=fcVHGZVCkDI&list=RDI5PI1i2npGQ&index=2",
             # "https://youtu.be/KCy_5nhiXs0?si=jibLq1eGh6si4fD-",
-            "https://youtube.com/watch?v=7g9xcCMdwns",
+            # "https://youtube.com/watch?v=7g9xcCMdwns",
             # "https://www.youtube.com/watch?v=YAnjSN9hhyM&list=RDYAnjSN9hhyM&start_radio=1",  # JOLIN 蔡依林 PLEASURE世界巡迴演唱會 TAIPEI 20260101 Full version
         ]
 
@@ -228,7 +244,8 @@ class YouTubeDownloader:
             # "https://www.youtube.com/playlist?list=PLf8GXxJN5qee681F2CR1zxhEJTktJE7BT",  # QWER Color Coded Lyrics
             # "https://www.youtube.com/playlist?list=PLhkqiApN_VYY91KletZlZPDIX0fNly9tT",  # 帝國軍歌歌謠
             # "https://www.youtube.com/playlist?list=PLhkqiApN_VYaOgTYf0oGEtSwT9XdSRlfX",  # 舊日本行進曲、軍歌、歌謠
-            "https://www.youtube.com/playlist?list=PLhkqiApN_VYbe3xV7AZKOoALSzv-h1XQm",  # 日本歌曲（3）
+            # "https://www.youtube.com/playlist?list=PLhkqiApN_VYbe3xV7AZKOoALSzv-h1XQm",  # 日本歌曲（3）
+            "https://www.youtube.com/playlist?list=PLEMWyuM4E6qQvLqMJ-YdC0rBztBYpZaGv",  # 尼可拉斯楊Live精發財系列大全集
         ]
 
         self.channel_urls = [
