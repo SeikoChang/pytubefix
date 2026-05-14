@@ -98,13 +98,13 @@ def test_update_task(manager):
 @patch("os.path.exists")
 @patch("shutil.move")
 @patch("os.remove")
-@patch("run.on_progress")
+@patch("run.Progress") # Patch rich Progress
 async def test_download_video_success(
-    mock_on_progress, mock_remove, mock_move, mock_exists,
+    mock_progress_class, mock_remove, mock_move, mock_exists,
     mock_audio_clip, mock_video_clip, mock_yt_class,
     downloader, temp_dir
 ):
-    """Tests a full successful download and merge flow."""
+    """Tests a full successful download and merge flow with rich progress."""
     video_id = "SUCCESS1234"
     url = f"https://www.youtube.com/watch?v={video_id}"
     
@@ -131,14 +131,10 @@ async def test_download_video_success(
     mock_video_clip.return_value = mock_vfc
     mock_audio_clip.return_value = mock_afc
     
-    # Trace-based side_effect:
-    # 1-2: add_task collision checks (Video.mp4, Video.mp3) -> False
-    # 3-4: _download_youtube_video initial checks (Video.mp4, Video.mp3) -> False
-    # 5: extract audio check (Video.mp4) -> False
-    # 6: temp audio file check (./Video.mp4) -> False
-    # 7-8: merge block reconvert check (Video.mp4, Video.mp3) -> True
-    # 9: already merged check -> False
-    # 10: original video removal check -> True
+    # Mock Rich Progress
+    mock_progress_inst = mock_progress_class.return_value.__enter__.return_value
+    downloader.progress = mock_progress_inst # Inject mocked progress
+    
     mock_exists.side_effect = [False, False, False, False, False, False, True, True, False, True] + [True]*10
 
     result = await downloader._download_youtube_video(url)
@@ -149,6 +145,10 @@ async def test_download_video_success(
     assert mock_video_clip.called
     assert mock_afc.write_audiofile.called
     assert mock_vfc.write_videofile.called
+    
+    # Verify rich progress calls
+    assert mock_progress_inst.add_task.called
+    assert mock_progress_inst.remove_task.called
     
     # Verify task status
     task = downloader.task_manager.get_task(video_id)
