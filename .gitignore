@@ -154,3 +154,7 @@ content/
 __cache__/
 
 debug.py
+*.m3u8
+*,mp4
+*.bat
+*.json
